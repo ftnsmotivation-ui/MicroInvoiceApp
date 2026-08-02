@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MicroInvoice — Free Instant Invoicing</title>
+<title>Micro Invoice — Free Instant Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -122,7 +122,7 @@
   <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2">
     <div class="flex items-center gap-2">
       <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold font-display text-sm">M</div>
-      <span class="font-display font-bold text-slate-900 tracking-tight">MicroInvoice</span>
+      <span class="font-display font-bold text-slate-900 tracking-tight">Micro Invoice</span>
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <button id="resetBtn" class="toolbtn">
@@ -172,8 +172,15 @@
     </div>
     <div class="bg-white border border-slate-200 rounded-xl px-4 py-3">
       <label class="block text-xs font-semibold text-slate-500 mb-1">Payment link (Stripe / PayPal / Wise / Revolut)</label>
-      <input id="paymentLinkInput" type="url" placeholder="https://pay.example.com/your-link" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500" />
+      <input id="paymentLinkInput" type="url" inputmode="url" autocomplete="url" aria-describedby="paymentLinkHelp paymentLinkError" placeholder="https://pay.example.com/your-link" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500" />
+      <p id="paymentLinkHelp" class="text-[11px] text-slate-400 mt-1">Optional. For safety, only secure links beginning with https:// are accepted.</p>
+      <p id="paymentLinkError" class="hidden text-[11px] text-red-600 mt-1" role="alert">Please enter a secure payment link beginning with https://</p>
     </div>
+  </div>
+
+  <div id="validationSummary" class="no-print hidden bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4" role="alert" tabindex="-1">
+    <p class="text-sm font-semibold text-red-800">Please complete the invoice before exporting:</p>
+    <ul id="validationList" class="mt-1 text-sm text-red-700 list-disc pl-5"></ul>
   </div>
 
   <!-- AI Magic Paste -->
@@ -296,14 +303,15 @@
       </div>
 
       <div class="mt-7 pt-4 border-t border-slate-100 text-center text-[11px] text-slate-300">
-        Generated with <a id="growthLink" href="#" class="text-slate-400 hover:text-indigo-500 underline underline-offset-2">MicroInvoice</a> — Create your free invoice.
+        Generated with <a id="growthLink" href="#" class="text-slate-400 hover:text-indigo-500 underline underline-offset-2">Micro Invoice</a> — Create your free invoice.
       </div>
     </div>
   </div>
 
-  <p class="no-print text-center text-xs text-slate-400 mt-6">
-    Your invoice autosaves to this browser. Nothing is uploaded anywhere.
-  </p>
+  <div class="no-print mt-6 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-center">
+    <p class="text-xs font-semibold text-emerald-800">Private by design</p>
+    <p class="text-xs text-emerald-700 mt-0.5">Your invoice data stays in this browser. No signup, no account, and no invoice data is uploaded to our servers.</p>
+  </div>
 </main>
 
 <script>
@@ -485,7 +493,8 @@
     itemsList: $('itemsList'), addItemBtn: $('addItemBtn'),
     taxRate: $('taxRate'), subtotalOut: $('subtotalOut'), taxOut: $('taxOut'), totalOut: $('totalOut'),
     notes: $('notes'),
-    paymentLinkInput: $('paymentLinkInput'),
+    paymentLinkInput: $('paymentLinkInput'), paymentLinkError: $('paymentLinkError'),
+    validationSummary: $('validationSummary'), validationList: $('validationList'),
     payBtnWrap: $('payBtnWrap'), payBtn: $('payBtn'),
     resetBtn: $('resetBtn'), copyEmailBtn: $('copyEmailBtn'), exportCsvBtn: $('exportCsvBtn'), downloadBtn: $('downloadBtn'),
     magicPasteInput: $('magicPasteInput'), magicPasteBtn: $('magicPasteBtn'), magicPasteResult: $('magicPasteResult'),
@@ -499,6 +508,60 @@
   }
   function escHtml(s){
     return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function isSecurePaymentLink(value){
+    if (!String(value || '').trim()) return true;
+    try{
+      var url = new URL(String(value).trim());
+      return url.protocol === 'https:' && !!url.hostname;
+    } catch(e){ return false; }
+  }
+
+  function updatePaymentLinkValidity(){
+    var valid = isSecurePaymentLink(els.paymentLinkInput.value);
+    els.paymentLinkInput.classList.toggle('border-red-400', !valid);
+    els.paymentLinkInput.classList.toggle('focus:border-red-500', !valid);
+    els.paymentLinkError.classList.toggle('hidden', valid);
+    els.paymentLinkInput.setAttribute('aria-invalid', valid ? 'false' : 'true');
+    return valid;
+  }
+
+  function validateInvoice(){
+    var errors = [];
+    if (!String(state.biz.name || '').trim()) errors.push('Enter your business name.');
+    if (!String(state.client.name || '').trim()) errors.push('Enter the client or customer name.');
+    if (!String(state.invoiceNumber || '').trim()) errors.push('Enter an invoice number.');
+    if (!state.invoiceDate) errors.push('Select an invoice date.');
+    if (state.dueDate && state.invoiceDate && state.dueDate < state.invoiceDate) errors.push('The due date cannot be earlier than the invoice date.');
+    var usableItems = state.items.filter(function(item){ return String(item.title || '').trim(); });
+    if (!usableItems.length) errors.push('Add at least one item or service description.');
+    state.items.forEach(function(item, index){
+      if (String(item.title || '').trim() && Number(item.qty) <= 0) errors.push('Item ' + (index + 1) + ' must have a quantity greater than zero.');
+      if (Number(item.rate) < 0) errors.push('Item ' + (index + 1) + ' cannot have a negative rate.');
+    });
+    var tax = Number(state.taxRate);
+    if (!Number.isFinite(tax) || tax < 0 || tax > 100) errors.push('Tax must be between 0% and 100%.');
+    if (!isSecurePaymentLink(state.paymentLink)) errors.push('Use a secure payment link beginning with https://, or leave it blank.');
+    return errors;
+  }
+
+  function requireValidInvoice(){
+    var errors = validateInvoice();
+    updatePaymentLinkValidity();
+    els.validationList.innerHTML = '';
+    errors.forEach(function(message){
+      var li = document.createElement('li');
+      li.textContent = message;
+      els.validationList.appendChild(li);
+    });
+    els.validationSummary.classList.toggle('hidden', errors.length === 0);
+    if (errors.length){
+      els.validationSummary.focus();
+      els.validationSummary.scrollIntoView({ behavior:'smooth', block:'center' });
+      return false;
+    }
+    return true;
   }
 
   // ---------- Render ----------
@@ -532,6 +595,7 @@
     renderItems();
     renderTotals();
     renderPayments();
+    updatePaymentLinkValidity();
 
     try{
       els.growthLink.href = window.location.origin + window.location.pathname;
@@ -588,7 +652,7 @@
   }
 
   function renderPayments(){
-    var showPayBtn = !!state.paymentLink;
+    var showPayBtn = !!state.paymentLink && isSecurePaymentLink(state.paymentLink);
     els.payBtnWrap.classList.toggle('hidden', !showPayBtn);
     if (showPayBtn) els.payBtn.href = state.paymentLink;
   }
@@ -620,7 +684,14 @@
   bindSimple(els.invoiceDate, 'invoiceDate');
   bindSimple(els.dueDate, 'dueDate');
   bindSimple(els.notes, 'notes');
-  bindSimple(els.paymentLinkInput, 'paymentLink');
+  els.paymentLinkInput.addEventListener('input', function(){
+    var value = els.paymentLinkInput.value.trim();
+    state.paymentLink = value;
+    updatePaymentLinkValidity();
+    renderPayments();
+    saveState();
+  });
+  els.paymentLinkInput.addEventListener('blur', updatePaymentLinkValidity);
 
   els.currencySelect.addEventListener('change', function(){
     state.currency = els.currencySelect.value;
@@ -768,7 +839,7 @@
 
   // Reset
   els.resetBtn.addEventListener('click', function(){
-    if (!confirm('Clear this invoice and start a new draft? This cannot be undone.')) return;
+    if (!confirm('Reset this invoice?\n\nThis will permanently erase the current invoice and logo saved in this browser.')) return;
     localStorage.removeItem(STORAGE_KEY);
     state = defaultState();
     renderStatic();
@@ -804,6 +875,7 @@
   //    previously-verified-working Letter-page export — so a download always
   //    succeeds even if the tight-fit optimization can't run for some reason.
   els.downloadBtn.addEventListener('click', function(){
+    if (!requireValidInvoice()) return;
     var invoiceEl = document.getElementById('invoice');
     var hideEls = invoiceEl.querySelectorAll('.no-print');
     var prevDisplay = [];
@@ -892,6 +964,7 @@
   }
 
   els.exportCsvBtn.addEventListener('click', function(){
+    if (!requireValidInvoice()) return;
     var cur = CURRENCIES[state.currency] || CURRENCIES.USD;
     var subtotal = computeSubtotal();
     var tax = subtotal * ((Number(state.taxRate)||0) / 100);
@@ -1002,7 +1075,7 @@
         (state.notes ? ('<div style="margin-top:24px;font-size:13px;color:#64748b;white-space:pre-line;"><strong style="color:#0f172a;">Notes:</strong><br/>' + escHtml(state.notes) + '</div>') : '') +
 
         '<div style="margin-top:32px;padding-top:16px;border-top:1px solid #f1f5f9;text-align:center;font-size:11px;color:#cbd5e1;">' +
-          'Generated with <a href="' + escapeAttr(appUrl) + '" style="color:#94a3b8;text-decoration:underline;">MicroInvoice</a> — Create your free invoice.' +
+          'Generated with <a href="' + escapeAttr(appUrl) + '" style="color:#94a3b8;text-decoration:underline;">Micro Invoice</a> — Create your free invoice.' +
         '</div>' +
       '</td></tr>' +
     '</table>'
@@ -1010,6 +1083,7 @@
   }
 
   els.copyEmailBtn.addEventListener('click', function(){
+    if (!requireValidInvoice()) return;
     var html = buildEmailHtml();
     var container = document.createElement('div');
     container.setAttribute('contenteditable', 'true');

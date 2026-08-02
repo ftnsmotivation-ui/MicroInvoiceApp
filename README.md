@@ -1,4 +1,4 @@
-# MicroInvoice
+# Micro Invoice
 
 A clean, zero-login, single-file invoicing app. No backend, no account, no database — everything runs client-side and autosaves to your browser's `localStorage`.
 
@@ -16,7 +16,7 @@ Live demo: open `index.html` directly in a browser, or deploy the file as-is to 
   - Download as a clean, single-page PDF
   - Copy as richly-formatted Email HTML (paste directly into Gmail/Outlook)
   - Export line items + totals as CSV
-- **Built-in growth loop** — a discreet "Generated with MicroInvoice" footer badge links back to wherever you deploy the app.
+- **Built-in growth loop** — a discreet "Generated with Micro Invoice" footer badge links back to wherever you deploy the app.
 
 ## Tech stack
 

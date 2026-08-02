@@ -6,7 +6,7 @@
 <title>Micro Invoice — Free Instant Invoicing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
@@ -20,15 +20,15 @@
     --canvas:#f8fafc;
   }
   html,body{ background:var(--canvas); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; color:var(--ink); }
-  .font-display{ font-family:'Plus Jakarta Sans', 'Inter', sans-serif; }
+  .font-display{ font-family:'Inter',ui-sans-serif,system-ui,sans-serif; }
   .tabular{ font-variant-numeric:tabular-nums; }
 
   .field{
     width:100%;
     background:transparent;
     border:1px solid transparent;
-    border-radius:6px;
-    padding:3px 6px;
+    border-radius:3px;
+    padding:2px 4px;
     transition:border-color .12s ease, background-color .12s ease;
     font-family:inherit;
     color:inherit;
@@ -49,12 +49,18 @@
     background:var(--paper);
     box-shadow:0 1px 2px rgba(15,23,42,.04), 0 12px 32px -12px rgba(15,23,42,.15);
     border:1px solid var(--line);
+    max-width:210mm;
+    min-height:297mm;
+    margin:0 auto;
+    padding:14mm 15mm 10mm;
+    font-size:13px;
+    line-height:1.35;
   }
 
   .logo-drop{
-    width:76px; height:76px;
-    border:1.5px dashed var(--line);
-    border-radius:12px;
+    width:58px; height:58px;
+    border:1px dashed var(--line);
+    border-radius:4px;
     display:flex; align-items:center; justify-content:center;
     cursor:pointer;
     background:#fafbff;
@@ -62,7 +68,7 @@
     overflow:hidden;
     flex-shrink:0;
   }
-  .logo-drop:hover{ border-color:var(--accent); background:#f5f5ff; }
+  .logo-drop:hover{ border-color:var(--accent); background:#f8fafc; }
   .logo-drop img{ width:100%; height:100%; object-fit:contain; }
 
   .toolbtn{
@@ -88,31 +94,44 @@
   .row-arrow:hover:not(:disabled){ color:var(--accent); }
   .row-arrow:disabled{ opacity:.25; cursor:not-allowed; }
 
-  /* Responsive item row: fixed-width columns stay pixel-aligned with their header
-     labels no matter what gets hidden (e.g. the reorder handles during PDF/print) —
-     unlike CSS Grid auto-placement, flex items with fixed basis never reflow into
-     each other's tracks. Wraps gracefully to a second line on narrow screens. */
-  .item-row{ display:flex; flex-wrap:wrap; align-items:center; column-gap:10px; row-gap:4px; }
+  .document-kicker{ font-size:9px; line-height:1.2; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:#64748b; }
+  .document-rule{ border-color:#cbd5e1; }
+  .item-row{ display:flex; align-items:flex-start; column-gap:8px; }
   .col-reorder{ width:20px; flex:0 0 auto; }
-  .col-desc{ flex:1 1 180px; min-width:140px; }
-  .col-qty{ width:56px; flex:0 0 auto; }
-  .col-rate{ width:84px; flex:0 0 auto; }
-  .col-amount{ width:104px; flex:0 0 auto; }
+  .col-desc{ flex:1 1 auto; min-width:0; }
+  .col-qty{ width:52px; flex:0 0 auto; }
+  .col-rate{ width:96px; flex:0 0 auto; }
+  .col-amount{ width:112px; flex:0 0 auto; }
+  .item-description{ resize:none !important; overflow:hidden; min-height:25px; }
+  .money-column{ font-variant-numeric:tabular-nums lining-nums; }
 
   /* Prevents a row or section from being sliced across a print/PDF page boundary */
   .keep-together{ break-inside:avoid; page-break-inside:avoid; }
 
   @media print{
+    @page{ size:A4; margin:0; }
     body *{ visibility:hidden; }
     #invoice, #invoice *{ visibility:visible; }
     #invoice{
-      position:absolute; left:0; top:0; width:100%;
+      position:absolute; left:0; top:0; width:210mm; min-height:297mm;
       box-shadow:none !important; border:none !important; margin:0 !important;
     }
     .no-print{ display:none !important; }
-    .field{ border-color:transparent !important; background:transparent !important; }
+    .field{ border-color:transparent !important; background:transparent !important; box-shadow:none !important; }
+    .logo-drop{ border-color:transparent !important; background:transparent !important; }
     body{ background:white !important; }
   }
+  @media (max-width:640px){
+    #invoice{ min-height:0; padding:24px 18px 18px; }
+    .item-row{ column-gap:5px; }
+    .col-reorder{ width:16px; }
+    .col-qty{ width:40px; }
+    .col-rate{ width:72px; }
+    .col-amount{ width:84px; }
+    .field{ padding-left:2px; padding-right:2px; }
+  }
+  #invoice.exporting .field{ border-color:transparent !important; background:transparent !important; box-shadow:none !important; }
+  #invoice.exporting .logo-drop{ border-color:transparent !important; background:transparent !important; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -151,43 +170,52 @@
   <div id="tipBar" class="no-print hidden items-start gap-3 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 mb-4">
     <span class="text-base leading-none mt-0.5">👋</span>
     <p class="flex-1 text-sm text-indigo-900">
-      New here? Fill in your business and client details below, add line items (or paste them with <strong>AI Magic Paste</strong>), then export with the buttons up top. Everything autosaves to this browser only.
+      New here? Fill in your business and client details below, add line items (or paste them with <strong>Smart Paste</strong>), then export with the buttons up top. Everything autosaves to this browser only.
     </p>
     <button id="tipDismiss" class="text-indigo-400 hover:text-indigo-700 text-lg leading-none px-1" title="Dismiss">&times;</button>
   </div>
 
-  <!-- Control panel: currency + payment link -->
-  <div class="no-print grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+  <!-- Control panel: currency, payment and notes -->
+  <div class="no-print grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
     <div class="bg-white border border-slate-200 rounded-xl px-4 py-3">
       <label class="block text-xs font-semibold text-slate-500 mb-1">Currency</label>
       <select id="currencySelect" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 bg-white">
-        <option value="USD">USD ($)</option>
-        <option value="EUR">EUR (€)</option>
-        <option value="GBP">GBP (£)</option>
-        <option value="CAD">CAD (CA$)</option>
-        <option value="INR">INR (₹)</option>
-        <option value="JPY">JPY (¥)</option>
-        <option value="AUD">AUD (AU$)</option>
+        <option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
+        <option value="INR">INR</option><option value="CAD">CAD</option><option value="AUD">AUD</option>
+        <option value="NZD">NZD</option><option value="SGD">SGD</option><option value="HKD">HKD</option>
+        <option value="AED">AED</option><option value="SAR">SAR</option><option value="QAR">QAR</option>
+        <option value="KWD">KWD</option><option value="BHD">BHD</option><option value="OMR">OMR</option>
+        <option value="CHF">CHF</option><option value="SEK">SEK</option><option value="NOK">NOK</option>
+        <option value="DKK">DKK</option><option value="PLN">PLN</option><option value="CZK">CZK</option>
+        <option value="HUF">HUF</option><option value="TRY">TRY</option><option value="ZAR">ZAR</option>
+        <option value="JPY">JPY</option><option value="CNY">CNY</option><option value="KRW">KRW</option>
+        <option value="MYR">MYR</option><option value="THB">THB</option><option value="IDR">IDR</option>
+        <option value="PHP">PHP</option><option value="VND">VND</option><option value="MXN">MXN</option>
+        <option value="BRL">BRL</option>
       </select>
     </div>
     <div class="bg-white border border-slate-200 rounded-xl px-4 py-3">
-      <label class="block text-xs font-semibold text-slate-500 mb-1">Payment link (Stripe / PayPal / Wise / Revolut)</label>
+      <label class="block text-xs font-semibold text-slate-700 mb-1">Get Paid Online</label>
       <input id="paymentLinkInput" type="url" inputmode="url" autocomplete="url" aria-describedby="paymentLinkHelp paymentLinkError" placeholder="https://pay.example.com/your-link" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500" />
-      <p id="paymentLinkHelp" class="text-[11px] text-slate-400 mt-1">Optional. For safety, only secure links beginning with https:// are accepted.</p>
-      <p id="paymentLinkError" class="hidden text-[11px] text-red-600 mt-1" role="alert">Please enter a secure payment link beginning with https://</p>
+      <p id="paymentLinkHelp" class="text-[11px] text-slate-400 mt-1">Add a secure payment link. It appears on the invoice so your customer can pay online.</p>
+      <p id="paymentLinkError" class="hidden text-[11px] text-red-600 mt-1" role="alert">Please enter a valid link beginning with https://</p>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-xl px-4 py-3">
+      <label for="notes" class="block text-xs font-semibold text-slate-700 mb-1">Notes</label>
+      <textarea id="notes" rows="3" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 resize-y" placeholder="Payment terms, bank details, or a short message"></textarea>
+      <p class="text-[11px] text-slate-400 mt-1">Shown on the invoice only when text is entered.</p>
     </div>
   </div>
-
   <div id="validationSummary" class="no-print hidden bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4" role="alert" tabindex="-1">
     <p class="text-sm font-semibold text-red-800">Please complete the invoice before exporting:</p>
     <ul id="validationList" class="mt-1 text-sm text-red-700 list-disc pl-5"></ul>
   </div>
 
-  <!-- AI Magic Paste -->
+  <!-- Smart Paste -->
   <div class="no-print bg-white border border-slate-200 rounded-xl px-4 py-4 mb-6">
     <div class="flex items-center gap-2 mb-2">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="currentColor"><path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
-      <p class="text-sm font-semibold text-slate-800">AI Magic Paste</p>
+      <p class="text-sm font-semibold text-slate-800">Smart Paste</p>
     </div>
     <p class="text-xs text-slate-400 mb-2">Paste raw notes like "5 hrs landing page dev at $80/hr, $100 server setup, fixed SSL bug for $50" and we'll turn each into a line item.</p>
     <textarea id="magicPasteInput" rows="3" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500" placeholder="Paste project notes, chat logs, or a rough list of work done..."></textarea>
@@ -204,110 +232,75 @@
   </div>
 
   <!-- Invoice canvas -->
-  <div id="invoice" class="relative rounded-2xl p-7 sm:p-10">
-    <div class="relative">
-
-      <!-- Header -->
-      <div class="keep-together flex flex-col sm:flex-row justify-between gap-6 mb-7">
-        <div class="flex items-start gap-3.5">
+  <article id="invoice" class="relative flex flex-col">
+    <div>
+      <header class="keep-together grid grid-cols-1 sm:grid-cols-[1fr_230px] gap-6 pb-5 border-b-2 border-slate-800">
+        <div class="flex items-start gap-3">
           <div id="logoDrop" class="logo-drop">
-            <span id="logoPlaceholder" class="text-[10px] text-slate-400 text-center px-2 leading-tight">+ Add<br/>logo</span>
-            <img id="logoImg" class="hidden" alt="Logo" />
+            <span id="logoPlaceholder" class="text-[9px] text-slate-400 text-center px-1 leading-tight">Add logo</span>
+            <img id="logoImg" class="hidden" alt="Business logo" />
           </div>
           <input type="file" id="logoInput" accept="image/*" class="hidden" />
-          <div class="pt-0.5">
-            <input class="field font-display font-bold text-lg text-slate-900" id="bizName" placeholder="Your Business Name" />
-            <input class="field text-sm text-slate-500" id="bizEmail" placeholder="you@business.com" />
-            <input class="field text-sm text-slate-500" id="bizPhone" placeholder="Phone number" />
-            <textarea class="field text-sm text-slate-500" id="bizAddress" placeholder="Business address" rows="2"></textarea>
+          <div class="min-w-0 flex-1">
+            <input class="field font-semibold text-[17px] leading-tight text-slate-900" id="bizName" placeholder="Your Business Name" />
+            <input class="field text-[11px] text-slate-500" id="bizEmail" placeholder="you@business.com" />
+            <input class="field text-[11px] text-slate-500" id="bizPhone" placeholder="Phone number" />
+            <textarea class="field text-[11px] text-slate-500" id="bizAddress" placeholder="Business address" rows="2"></textarea>
           </div>
         </div>
-        <div class="text-left sm:text-right flex-shrink-0 sm:w-60">
-          <h1 class="font-display font-extrabold text-2xl tracking-tight text-slate-900 mb-2 relative inline-block sm:block">
-            INVOICE
-            <span class="block h-1 w-8 rounded-full bg-indigo-600 mt-1 sm:ml-auto"></span>
-          </h1>
-          <div class="grid grid-cols-[auto_1fr] sm:grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-sm items-center">
-            <span class="text-slate-400 text-xs">Invoice #</span>
-            <input class="field text-right font-medium text-slate-700 sm:w-28" id="invoiceNumber" placeholder="INV-0001" />
-            <span class="text-slate-400 text-xs">Date</span>
-            <input type="date" class="field text-right text-slate-700 sm:w-28" id="invoiceDate" />
-            <span class="text-slate-400 text-xs">Due date</span>
-            <input type="date" class="field text-right text-slate-700 sm:w-28" id="dueDate" />
+        <div class="sm:text-right">
+          <h1 class="font-semibold text-[25px] leading-none tracking-[.12em] text-slate-900 mb-3">INVOICE</h1>
+          <div class="grid grid-cols-[72px_1fr] sm:grid-cols-[1fr_118px] gap-x-2 gap-y-0.5 items-center">
+            <span class="document-kicker">Invoice no.</span><input class="field sm:text-right font-medium tabular" id="invoiceNumber" placeholder="INV-0001" />
+            <span class="document-kicker">Issue date</span><input type="date" class="field sm:text-right tabular text-slate-700" id="invoiceDate" />
+            <span class="document-kicker">Due date</span><input type="date" class="field sm:text-right tabular text-slate-700" id="dueDate" />
           </div>
         </div>
-      </div>
-
-      <!-- Bill From / To -->
-      <div class="keep-together grid grid-cols-1 sm:grid-cols-2 gap-6 mb-7 pb-6 border-b border-slate-100">
-        <div>
-          <p class="text-xs font-semibold tracking-wide text-slate-400 uppercase mb-1.5">Billed by</p>
-          <p class="text-sm font-semibold text-slate-800" id="bizNameEcho">&nbsp;</p>
+      </header>
+      <section class="keep-together grid grid-cols-2 gap-8 py-5 border-b border-slate-200">
+        <div class="min-w-0">
+          <p class="document-kicker mb-2">Billed by</p>
+          <p class="font-semibold text-slate-900 leading-snug" id="bizNameEcho">&nbsp;</p>
+          <p class="text-[11px] text-slate-500 leading-snug" id="bizEmailEcho"></p>
+          <p class="text-[11px] text-slate-500 leading-snug" id="bizPhoneEcho"></p>
+          <p class="text-[11px] text-slate-500 leading-snug whitespace-pre-line" id="bizAddressEcho"></p>
         </div>
-        <div class="text-right">
-          <p class="text-xs font-semibold tracking-wide text-slate-400 uppercase mb-1.5">Billed to</p>
-          <input class="field text-right font-semibold text-slate-800" id="clientName" placeholder="Client name" />
-          <input class="field text-right text-sm text-slate-500" id="clientEmail" placeholder="client@email.com" />
-          <textarea class="field text-right text-sm text-slate-500" id="clientAddress" placeholder="Client address" rows="2"></textarea>
+        <div class="min-w-0">
+          <p class="document-kicker mb-2">Billed to</p>
+          <input class="field font-semibold text-slate-900" id="clientName" placeholder="Client name" />
+          <input class="field text-[11px] text-slate-500" id="clientEmail" placeholder="client@email.com" />
+          <textarea class="field text-[11px] text-slate-500" id="clientAddress" placeholder="Client address" rows="2"></textarea>
         </div>
-      </div>
-
-      <!-- Line items -->
-      <div class="mb-5">
-        <div class="item-row text-[11px] font-semibold tracking-wide text-slate-400 uppercase px-1.5 pb-2 border-b border-slate-200">
-          <div class="col-reorder no-print"></div>
-          <div class="col-desc px-1.5">Description</div>
-          <div class="col-qty text-right px-1.5">Qty</div>
-          <div class="col-rate text-right px-1.5">Rate</div>
-          <div class="col-amount text-right">Amount</div>
+      </section>
+      <section class="mt-5 mb-4">
+        <div class="item-row document-kicker px-1 pb-2 border-b border-slate-700">
+          <div class="col-reorder no-print"></div><div class="col-desc">Description</div><div class="col-qty text-right">Qty</div><div class="col-rate text-right">Rate</div><div class="col-amount text-right">Amount</div>
         </div>
         <div id="itemsList"></div>
-        <button id="addItemBtn" class="no-print mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-1.5 rounded-lg hover:bg-indigo-50 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-          Add line item
+        <button id="addItemBtn" class="no-print mt-2 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 px-1 py-1 rounded hover:bg-indigo-50 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg> Add line item
         </button>
-      </div>
-
-      <!-- Totals -->
-      <div class="flex justify-end mb-6">
-        <div class="keep-together w-full sm:w-72 space-y-1.5 text-sm bg-slate-50 rounded-xl px-4 py-3.5">
-          <div class="flex items-center justify-between">
-            <span class="text-slate-500">Subtotal</span>
-            <span class="font-medium text-slate-700 tabular" id="subtotalOut">$0.00</span>
+      </section>
+      <section class="keep-together flex justify-end mb-5">
+        <div class="w-full sm:w-[285px] text-[12px] money-column">
+          <div class="grid grid-cols-[1fr_118px] gap-x-4 py-1"><span class="text-slate-500">Subtotal</span><span class="text-right font-medium text-slate-700" id="subtotalOut">$0.00</span></div>
+          <div class="grid grid-cols-[1fr_118px] gap-x-4 py-1 items-center">
+            <span class="flex items-center gap-1 text-slate-500 min-w-0"><input id="taxLabel" class="field !w-20 !p-0 text-slate-500" maxlength="20" value="Tax" aria-label="Tax label" /><span>(</span><input type="number" id="taxRate" class="field num-field tabular !w-11 !p-0 text-slate-600" value="0" min="0" max="100" step="0.1" aria-label="Tax percentage" /><span>%)</span></span>
+            <span class="text-right font-medium text-slate-700" id="taxOut">$0.00</span>
           </div>
-          <div class="flex items-center justify-between">
-            <span class="text-slate-500 flex items-center gap-1.5">Tax
-              <input type="number" id="taxRate" class="field num-field tabular w-12 !p-1 text-slate-600 bg-white/70 rounded" value="0" min="0" step="0.1" />%
-            </span>
-            <span class="font-medium text-slate-700 tabular" id="taxOut">$0.00</span>
-          </div>
-          <div class="flex items-center justify-between pt-2 border-t border-slate-200">
-            <span class="font-display font-bold text-slate-900">Total</span>
-            <span class="font-display font-bold text-lg text-indigo-600 tabular" id="totalOut">$0.00</span>
-          </div>
+          <div class="grid grid-cols-[1fr_118px] gap-x-4 mt-1 pt-2 border-t border-slate-800"><span class="font-semibold text-slate-900">Total</span><span class="text-right font-semibold text-[15px] text-slate-900" id="totalOut">$0.00</span></div>
         </div>
-      </div>
-
-      <!-- Pay button -->
-      <div id="payBtnWrap" class="hidden mb-6">
-        <a id="payBtn" href="#" target="_blank" rel="noopener" class="no-underline inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 4.5h16.5a1.5 1.5 0 011.5 1.5v12a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5V6a1.5 1.5 0 011.5-1.5z"/></svg>
-          Pay This Invoice Online
-        </a>
-      </div>
-
-      <!-- Notes -->
-      <div class="keep-together">
-        <p class="text-xs font-semibold tracking-wide text-slate-400 uppercase mb-1.5">Notes</p>
-        <textarea class="field text-sm text-slate-500" id="notes" rows="2" placeholder="Payment terms, thank-you note, bank details, etc."></textarea>
-      </div>
-
-      <div class="mt-7 pt-4 border-t border-slate-100 text-center text-[11px] text-slate-300">
-        Generated with <a id="growthLink" href="#" class="text-slate-400 hover:text-indigo-500 underline underline-offset-2">Micro Invoice</a> — Create your free invoice.
-      </div>
+      </section>
+      <section id="payBtnWrap" class="keep-together hidden mb-5 pt-3 border-t border-slate-200">
+        <p class="document-kicker mb-1.5">How to Pay</p>
+        <a id="payBtn" href="#" target="_blank" rel="noopener" class="inline-block text-[12px] font-semibold text-indigo-700 underline underline-offset-2 break-all">Pay securely online</a>
+      </section>
+      <section id="notesWrap" class="keep-together hidden mb-4 pt-3 border-t border-slate-200">
+        <p class="document-kicker mb-1.5">Notes</p><p id="notesOut" class="text-[11px] leading-relaxed text-slate-600 whitespace-pre-line"></p>
+      </section>
     </div>
-  </div>
-
+    <footer class="mt-auto pt-3 border-t border-slate-200 text-[10px] text-slate-400">Thank you for your business.</footer>
+  </article>
   <div class="no-print mt-6 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-center">
     <p class="text-xs font-semibold text-emerald-800">Private by design</p>
     <p class="text-xs text-emerald-700 mt-0.5">Your invoice data stays in this browser. No signup, no account, and no invoice data is uploaded to our servers.</p>
@@ -321,15 +314,19 @@
   var STORAGE_KEY = 'micro_invoice_draft_v2';
 
   var CURRENCIES = {
-    USD: { symbol:'$',   decimals:2 },
-    EUR: { symbol:'€',   decimals:2 },
-    GBP: { symbol:'£',   decimals:2 },
-    CAD: { symbol:'CA$', decimals:2 },
-    INR: { symbol:'₹',   decimals:2 },
-    JPY: { symbol:'¥',   decimals:0 },
-    AUD: { symbol:'AU$', decimals:2 }
+    USD:{code:'USD',decimals:2}, EUR:{code:'EUR',decimals:2}, GBP:{code:'GBP',decimals:2},
+    INR:{code:'INR',decimals:2}, CAD:{code:'CAD',decimals:2}, AUD:{code:'AUD',decimals:2},
+    NZD:{code:'NZD',decimals:2}, SGD:{code:'SGD',decimals:2}, HKD:{code:'HKD',decimals:2},
+    AED:{code:'AED',decimals:2}, SAR:{code:'SAR',decimals:2}, QAR:{code:'QAR',decimals:2},
+    KWD:{code:'KWD',decimals:3}, BHD:{code:'BHD',decimals:3}, OMR:{code:'OMR',decimals:3},
+    CHF:{code:'CHF',decimals:2}, SEK:{code:'SEK',decimals:2}, NOK:{code:'NOK',decimals:2},
+    DKK:{code:'DKK',decimals:2}, PLN:{code:'PLN',decimals:2}, CZK:{code:'CZK',decimals:2},
+    HUF:{code:'HUF',decimals:2}, TRY:{code:'TRY',decimals:2}, ZAR:{code:'ZAR',decimals:2},
+    JPY:{code:'JPY',decimals:0}, CNY:{code:'CNY',decimals:2}, KRW:{code:'KRW',decimals:0},
+    MYR:{code:'MYR',decimals:2}, THB:{code:'THB',decimals:2}, IDR:{code:'IDR',decimals:0},
+    PHP:{code:'PHP',decimals:2}, VND:{code:'VND',decimals:0}, MXN:{code:'MXN',decimals:2},
+    BRL:{code:'BRL',decimals:2}
   };
-
   function cryptoId(){
     return 'i_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
   }
@@ -345,6 +342,7 @@
       currency: 'USD',
       items: [ { id: cryptoId(), title:'', qty:1, rate:0 } ],
       taxRate: 0,
+      taxLabel: 'Tax',
       notes: '',
       paymentLink: ''
     };
@@ -371,6 +369,7 @@
       });
     }
     out.taxRate = Number(out.taxRate) || 0;
+    out.taxLabel = String(out.taxLabel || 'Tax').slice(0, 20);
     return out;
   }
 
@@ -389,8 +388,15 @@
   }
 
   function fmtMoney(n, cur){
-    var v = isFinite(n) ? n : 0;
-    return cur.symbol + v.toLocaleString(undefined, { minimumFractionDigits:cur.decimals, maximumFractionDigits:cur.decimals });
+    var v = isFinite(n) ? Number(n) : 0;
+    try{
+      return new Intl.NumberFormat(undefined, {
+        style:'currency', currency:cur.code,
+        minimumFractionDigits:cur.decimals, maximumFractionDigits:cur.decimals
+      }).format(v);
+    } catch(e){
+      return cur.code + ' ' + v.toFixed(cur.decimals);
+    }
   }
   function money(n){
     var cur = CURRENCIES[state.currency] || CURRENCIES.USD;
@@ -486,23 +492,21 @@
   var els = {
     logoDrop: $('logoDrop'), logoInput: $('logoInput'), logoImg: $('logoImg'), logoPlaceholder: $('logoPlaceholder'),
     bizName: $('bizName'), bizEmail: $('bizEmail'), bizPhone: $('bizPhone'), bizAddress: $('bizAddress'),
-    bizNameEcho: $('bizNameEcho'),
+    bizNameEcho: $('bizNameEcho'), bizEmailEcho: $('bizEmailEcho'), bizPhoneEcho: $('bizPhoneEcho'), bizAddressEcho: $('bizAddressEcho'),
     clientName: $('clientName'), clientEmail: $('clientEmail'), clientAddress: $('clientAddress'),
     invoiceNumber: $('invoiceNumber'), invoiceDate: $('invoiceDate'), dueDate: $('dueDate'),
     currencySelect: $('currencySelect'),
     itemsList: $('itemsList'), addItemBtn: $('addItemBtn'),
-    taxRate: $('taxRate'), subtotalOut: $('subtotalOut'), taxOut: $('taxOut'), totalOut: $('totalOut'),
-    notes: $('notes'),
+    taxLabel: $('taxLabel'), taxRate: $('taxRate'), subtotalOut: $('subtotalOut'), taxOut: $('taxOut'), totalOut: $('totalOut'),
+    notes: $('notes'), notesWrap: $('notesWrap'), notesOut: $('notesOut'),
     paymentLinkInput: $('paymentLinkInput'), paymentLinkError: $('paymentLinkError'),
     validationSummary: $('validationSummary'), validationList: $('validationList'),
     payBtnWrap: $('payBtnWrap'), payBtn: $('payBtn'),
     resetBtn: $('resetBtn'), copyEmailBtn: $('copyEmailBtn'), exportCsvBtn: $('exportCsvBtn'), downloadBtn: $('downloadBtn'),
     magicPasteInput: $('magicPasteInput'), magicPasteBtn: $('magicPasteBtn'), magicPasteResult: $('magicPasteResult'),
     tryExampleBtn: $('tryExampleBtn'),
-    tipBar: $('tipBar'), tipDismiss: $('tipDismiss'),
-    growthLink: $('growthLink')
+    tipBar: $('tipBar'), tipDismiss: $('tipDismiss')
   };
-
   function escapeAttr(s){
     return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   }
@@ -541,7 +545,7 @@
       if (Number(item.rate) < 0) errors.push('Item ' + (index + 1) + ' cannot have a negative rate.');
     });
     var tax = Number(state.taxRate);
-    if (!Number.isFinite(tax) || tax < 0 || tax > 100) errors.push('Tax must be between 0% and 100%.');
+    if (!Number.isFinite(tax) || tax < 0 || tax > 100) errors.push('The tax percentage must be between 0% and 100%.');
     if (!isSecurePaymentLink(state.paymentLink)) errors.push('Use a secure payment link beginning with https://, or leave it blank.');
     return errors;
   }
@@ -576,6 +580,7 @@
     els.invoiceNumber.value = state.invoiceNumber;
     els.invoiceDate.value = state.invoiceDate;
     els.dueDate.value = state.dueDate;
+    els.taxLabel.value = state.taxLabel;
     els.taxRate.value = state.taxRate;
     els.notes.value = state.notes;
     els.paymentLinkInput.value = state.paymentLink;
@@ -591,24 +596,29 @@
     }
 
     els.bizNameEcho.textContent = state.biz.name || ' ';
+    els.bizEmailEcho.textContent = state.biz.email || '';
+    els.bizPhoneEcho.textContent = state.biz.phone || '';
+    els.bizAddressEcho.textContent = state.biz.address || '';
 
     renderItems();
     renderTotals();
     renderPayments();
+    renderNotes();
     updatePaymentLinkValidity();
-
-    try{
-      els.growthLink.href = window.location.origin + window.location.pathname;
-    } catch(e){ els.growthLink.href = '#'; }
   }
 
+  function autoSizeDescription(field){
+    if (!field) return;
+    field.style.height = 'auto';
+    field.style.height = Math.max(25, field.scrollHeight) + 'px';
+  }
   function renderItems(){
     els.itemsList.innerHTML = '';
     var cur = CURRENCIES[state.currency] || CURRENCIES.USD;
     state.items.forEach(function(item, idx){
       var row = document.createElement('div');
       var isLast = idx === state.items.length - 1;
-      row.className = 'keep-together item-row px-1.5 py-0.5 group even:bg-slate-50/60' + (isLast ? '' : ' border-b border-slate-100');
+      row.className = 'keep-together item-row px-1 py-1.5 group' + (isLast ? '' : ' border-b border-slate-100');
       row.innerHTML =
         '<div class="col-reorder no-print flex flex-col items-center justify-center gap-0.5">' +
           '<button class="row-arrow p-0.5" data-move-up="'+item.id+'" '+(idx===0?'disabled':'')+' title="Move up">' +
@@ -619,21 +629,22 @@
           '</button>' +
         '</div>' +
         '<div class="col-desc">' +
-          '<input class="field" data-field="title" data-id="'+item.id+'" placeholder="Item or service description" value="'+escapeAttr(item.title)+'" />' +
+          '<textarea rows="1" class="field item-description text-[12px]" data-field="title" data-id="'+item.id+'" placeholder="Item or service description">'+escHtml(item.title)+'</textarea>' +
         '</div>' +
         '<div class="col-qty">' +
-          '<input type="number" min="0" step="1" class="field num-field tabular" data-field="qty" data-id="'+item.id+'" value="'+item.qty+'" />' +
+          '<input type="number" min="0" step="any" class="field num-field tabular text-[12px]" data-field="qty" data-id="'+item.id+'" value="'+item.qty+'" />' +
         '</div>' +
         '<div class="col-rate">' +
-          '<input type="number" min="0" step="0.01" class="field num-field tabular" data-field="rate" data-id="'+item.id+'" value="'+item.rate.toFixed(cur.decimals)+'" />' +
+          '<input type="number" min="0" step="any" class="field num-field tabular text-[12px]" data-field="rate" data-id="'+item.id+'" value="'+item.rate.toFixed(cur.decimals)+'" />' +
         '</div>' +
         '<div class="col-amount flex items-center justify-end gap-1">' +
-          '<span class="text-sm font-medium text-slate-700 tabular" data-amount>'+money(item.qty*item.rate)+'</span>' +
+          '<span class="text-[12px] font-medium text-slate-700 tabular" data-amount>'+money(item.qty*item.rate)+'</span>' +
           '<button class="no-print opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition p-1 flex-shrink-0" data-remove="'+item.id+'" title="Remove line item">' +
             '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>' +
           '</button>' +
         '</div>';
       els.itemsList.appendChild(row);
+      autoSizeDescription(row.querySelector('.item-description'));
     });
   }
 
@@ -651,6 +662,12 @@
     });
   }
 
+  function renderNotes(){
+    var hasNotes = !!String(state.notes || '').trim();
+    els.notesWrap.classList.toggle('hidden', !hasNotes);
+    els.notesOut.textContent = state.notes || '';
+  }
+
   function renderPayments(){
     var showPayBtn = !!state.paymentLink && isSecurePaymentLink(state.paymentLink);
     els.payBtnWrap.classList.toggle('hidden', !showPayBtn);
@@ -662,6 +679,10 @@
     el.addEventListener('input', function(){
       setPath(path, el.value);
       if (path === 'biz.name') els.bizNameEcho.textContent = el.value || ' ';
+      if (path === 'biz.email') els.bizEmailEcho.textContent = el.value;
+      if (path === 'biz.phone') els.bizPhoneEcho.textContent = el.value;
+      if (path === 'biz.address') els.bizAddressEcho.textContent = el.value;
+      if (path === 'notes') renderNotes();
       if (path === 'paymentLink') renderPayments();
       saveState();
     });
@@ -700,6 +721,11 @@
     saveState();
   });
 
+  els.taxLabel.addEventListener('input', function(){
+    state.taxLabel = els.taxLabel.value || 'Tax';
+    saveState();
+  });
+
   els.taxRate.addEventListener('input', function(){
     state.taxRate = Number(els.taxRate.value) || 0;
     renderTotals();
@@ -713,7 +739,7 @@
     if (!id || !field) return;
     var item = state.items.find(function(i){ return i.id === id; });
     if (!item) return;
-    if (field === 'title') item.title = t.value;
+    if (field === 'title'){ item.title = t.value; autoSizeDescription(t); }
     else item[field] = Number(t.value) || 0;
     renderTotals();
     saveState();
@@ -852,108 +878,42 @@
   }
 
   // PDF download
-  // Notes on the fixes below (html2canvas + html2pdf.js have a few well-known gotchas —
-  // see the html2pdf.js README "Known issues" section, and its actual v0.10.1 source):
-  // 1. Hiding editor-only controls with visibility:hidden keeps their layout space,
-  //    which left blank gaps in the captured image. We use display:none instead.
-  // 2. html2canvas captures relative to the current scroll position; if the page was
-  //    scrolled when "Download PDF" was clicked, the capture would start with a big
-  //    blank offset and cut real content off the bottom. We scroll to (0,0) first and
-  //    pass scrollX/scrollY:0 to html2canvas.
-  // 3. A fixed "letter" page size avoids crashes but wastes paper: any invoice shorter
-  //    than a full US Letter page leaves blank space, and one just *over* one page
-  //    pushes a couple of lines (and a lot of blank space) onto a near-empty 2nd page.
-  //    To fit the page to the content instead, we need the *real* rendered canvas
-  //    dimensions — but `.toCanvas()`'s own resolved value is `undefined` in this
-  //    library version (its internal `toCanvas_post` handler stores the canvas on
-  //    `this.prop.canvas` but never returns it). The fix is `.get('canvas')`, which
-  //    explicitly reads that stored value back out instead of relying on what
-  //    `.toCanvas()` resolved with.
-  // 4. Because that exact-fit path depends on library internals that are easy to get
-  //    subtly wrong (as the last two attempts showed), it's wrapped in its own
-  //    try/catch and .catch(), and ANY failure there falls back to the plain,
-  //    previously-verified-working Letter-page export — so a download always
-  //    succeeds even if the tight-fit optimization can't run for some reason.
   els.downloadBtn.addEventListener('click', function(){
     if (!requireValidInvoice()) return;
     var invoiceEl = document.getElementById('invoice');
     var hideEls = invoiceEl.querySelectorAll('.no-print');
     var prevDisplay = [];
     hideEls.forEach(function(el){ prevDisplay.push(el.style.display); el.style.display = 'none'; });
-
+    invoiceEl.classList.add('exporting');
     var prevScrollX = window.scrollX;
     var prevScrollY = window.scrollY;
     window.scrollTo(0, 0);
 
     function restore(){
       hideEls.forEach(function(el, i){ el.style.display = prevDisplay[i]; });
+      invoiceEl.classList.remove('exporting');
       window.scrollTo(prevScrollX, prevScrollY);
     }
 
-    function fail(err){
-      console.error('PDF export failed:', err);
-      restore();
-      alert('Something went wrong generating the PDF. Please try again.');
-    }
-
-    // Give the browser two frames to finish reflowing after the display:none / scroll
-    // changes above before we screenshot — otherwise stale layout metrics (from
-    // mid-transition) can reintroduce the same offset bug.
     requestAnimationFrame(function(){
       requestAnimationFrame(function(){
-        var filename = (state.invoiceNumber || 'invoice') + '.pdf';
-        var pageWidthIn = 8.5;
-
-        var html2canvasOpt = {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          scrollX: 0,
-          scrollY: 0
-        };
-
-        function exportLetterSize(){
-          var opt = {
-            margin: 0,
-            filename: filename,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: html2canvasOpt,
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'legacy'] }
-          };
-          return html2pdf().set(opt).from(invoiceEl).save();
-        }
-
-        try{
-          html2pdf().set({ html2canvas: html2canvasOpt }).from(invoiceEl).toCanvas().get('canvas').then(function(canvas){
-            if (!canvas || !canvas.width || !canvas.height){
-              throw new Error('Rendered canvas was not available; falling back.');
-            }
-            var pageHeightIn = Math.max(4, (canvas.height / canvas.width) * pageWidthIn);
-            var finalOpt = {
-              margin: 0,
-              filename: filename,
-              image: { type: 'jpeg', quality: 0.98 },
-              jsPDF: { unit: 'in', format: [pageWidthIn, pageHeightIn], orientation: 'portrait' },
-              pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-            };
-            // A fresh, independent conversion straight from the already-rendered
-            // canvas, now that we know the exact page size it needs.
-            return html2pdf().set(finalOpt).from(canvas, 'canvas').save();
-          }).then(function(){
-            restore();
-          }).catch(function(err){
-            console.warn('Exact-fit PDF export failed, falling back to standard Letter page:', err);
-            exportLetterSize().then(restore).catch(fail);
-          });
-        } catch(err){
-          console.warn('Exact-fit PDF export threw synchronously, falling back to standard Letter page:', err);
-          exportLetterSize().then(restore).catch(fail);
-        }
+        html2pdf().set({
+          margin:0,
+          filename:(state.invoiceNumber || 'invoice') + '.pdf',
+          image:{ type:'jpeg', quality:0.98 },
+          html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0 },
+          jsPDF:{ unit:'mm', format:'a4', orientation:'portrait' },
+          pagebreak:{ mode:['avoid-all', 'css', 'legacy'], avoid:['.keep-together', '.item-row'] }
+        }).from(invoiceEl).save().then(function(){
+          restore();
+        }).catch(function(err){
+          console.error('PDF export failed:', err);
+          restore();
+          alert('Something went wrong generating the PDF. Please try again.');
+        });
       });
     });
   });
-
   // CSV export
   function csvEscape(v){
     var s = String(v == null ? '' : v);
@@ -982,7 +942,7 @@
     });
     rows.push([]);
     rows.push(['', '', 'Subtotal', subtotal.toFixed(cur.decimals)]);
-    rows.push(['', '', 'Tax (' + (Number(state.taxRate)||0) + '%)', tax.toFixed(cur.decimals)]);
+    rows.push(['', '', (state.taxLabel || 'Tax') + ' (' + (Number(state.taxRate)||0) + '%)', tax.toFixed(cur.decimals)]);
     rows.push(['', '', 'Total', total.toFixed(cur.decimals)]);
 
     var csv = rows.map(function(r){ return r.map(csvEscape).join(','); }).join('\r\n');
@@ -1021,10 +981,8 @@
     ) : '';
 
     var logoHtml = state.logo ? '<img src="' + state.logo + '" alt="Logo" style="max-width:96px;max-height:96px;display:block;margin-bottom:8px;" />' : '';
-    var appUrl = window.location.origin + window.location.pathname;
-
     return (
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;background:#ffffff;border:1px solid #e2e8f0;border-radius:4px;">' +
       '<tr><td style="padding:32px;">' +
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
           '<td style="vertical-align:top;">' + logoHtml +
@@ -1064,19 +1022,17 @@
           '<tr><td></td><td style="width:240px;">' +
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
               '<tr><td style="padding:4px 8px;font-size:13px;color:#64748b;">Subtotal</td><td style="padding:4px 8px;font-size:13px;color:#334155;text-align:right;">' + fmtMoney(subtotal, cur) + '</td></tr>' +
-              '<tr><td style="padding:4px 8px;font-size:13px;color:#64748b;">Tax (' + (Number(state.taxRate)||0) + '%)</td><td style="padding:4px 8px;font-size:13px;color:#334155;text-align:right;">' + fmtMoney(tax, cur) + '</td></tr>' +
+              '<tr><td style="padding:4px 8px;font-size:13px;color:#64748b;">' + escHtml(state.taxLabel || 'Tax') + ' (' + (Number(state.taxRate)||0) + '%)</td><td style="padding:4px 8px;font-size:13px;color:#334155;text-align:right;">' + fmtMoney(tax, cur) + '</td></tr>' +
               '<tr><td style="padding:8px 8px;font-size:15px;font-weight:800;color:#0f172a;border-top:1px solid #e2e8f0;">Total</td><td style="padding:8px 8px;font-size:15px;font-weight:800;color:#0f172a;text-align:right;border-top:1px solid #e2e8f0;">' + fmtMoney(total, cur) + '</td></tr>' +
             '</table>' +
           '</td></tr>' +
         '</table>' +
 
-        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + payButtonHtml + '</table>' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + (payButtonHtml ? '<tr><td style="padding-top:20px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;">How to Pay</td></tr>' : '') + payButtonHtml + '</table>' +
 
         (state.notes ? ('<div style="margin-top:24px;font-size:13px;color:#64748b;white-space:pre-line;"><strong style="color:#0f172a;">Notes:</strong><br/>' + escHtml(state.notes) + '</div>') : '') +
 
-        '<div style="margin-top:32px;padding-top:16px;border-top:1px solid #f1f5f9;text-align:center;font-size:11px;color:#cbd5e1;">' +
-          'Generated with <a href="' + escapeAttr(appUrl) + '" style="color:#94a3b8;text-decoration:underline;">Micro Invoice</a> — Create your free invoice.' +
-        '</div>' +
+        '<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;">Thank you for your business.</div>' +
       '</td></tr>' +
     '</table>'
     );

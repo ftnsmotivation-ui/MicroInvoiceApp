@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MicroInvoice — Free Instant Invoicing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root{
+    --ink:#0f172a;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --accent:#4f46e5;
+    --accent-soft:#eef2ff;
+    --paper:#ffffff;
+    --canvas:#f8fafc;
+  }
+  html,body{ background:var(--canvas); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; color:var(--ink); }
+  .font-display{ font-family:'Plus Jakarta Sans', 'Inter', sans-serif; }
+  .tabular{ font-variant-numeric:tabular-nums; }
+
+  .field{
+    width:100%;
+    background:transparent;
+    border:1px solid transparent;
+    border-radius:6px;
+    padding:3px 6px;
+    transition:border-color .12s ease, background-color .12s ease;
+    font-family:inherit;
+    color:inherit;
+    line-height:1.35;
+  }
+  .field:hover{ border-color:var(--line); }
+  .field:focus{ outline:none; border-color:var(--accent); background:#f5f5ff; box-shadow:0 0 0 3px rgba(79,70,229,.08); }
+  .field::placeholder{ color:#a3aab8; }
+  textarea.field{ resize:vertical; min-height:0; line-height:1.4; }
+  .num-field{ text-align:right; }
+
+  /* Hide native number-input spinners so amounts sit flush and clean */
+  input[type=number].field::-webkit-inner-spin-button,
+  input[type=number].field::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+  input[type=number].field{ -moz-appearance:textfield; }
+
+  #invoice{
+    background:var(--paper);
+    box-shadow:0 1px 2px rgba(15,23,42,.04), 0 12px 32px -12px rgba(15,23,42,.15);
+    border:1px solid var(--line);
+  }
+
+  .logo-drop{
+    width:76px; height:76px;
+    border:1.5px dashed var(--line);
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    background:#fafbff;
+    transition:border-color .15s ease, background .15s ease;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .logo-drop:hover{ border-color:var(--accent); background:#f5f5ff; }
+  .logo-drop img{ width:100%; height:100%; object-fit:contain; }
+
+  .toolbtn{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:600;
+    padding:7px 12px; border-radius:9px;
+    border:1px solid var(--line);
+    color:#334155; background:#fff;
+    transition:background-color .12s ease, border-color .12s ease, box-shadow .12s ease;
+    white-space:nowrap;
+  }
+  .toolbtn:hover{ background:#f8fafc; border-color:#cbd5e1; }
+  .toolbtn:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(79,70,229,.25); }
+  .toolbtn-primary{
+    background:#0f172a; color:#fff; border-color:#0f172a;
+  }
+  .toolbtn-primary:hover{ background:#1e293b; box-shadow:0 2px 8px -2px rgba(15,23,42,.35); }
+
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:999px; }
+
+  .row-arrow{ color:#cbd5e1; }
+  .row-arrow:hover:not(:disabled){ color:var(--accent); }
+  .row-arrow:disabled{ opacity:.25; cursor:not-allowed; }
+
+  /* Responsive item row: fixed-width columns stay pixel-aligned with their header
+     labels no matter what gets hidden (e.g. the reorder handles during PDF/print) —
+     unlike CSS Grid auto-placement, flex items with fixed basis never reflow into
+     each other's tracks. Wraps gracefully to a second line on narrow screens. */
+  .item-row{ display:flex; flex-wrap:wrap; align-items:center; column-gap:10px; row-gap:4px; }
+  .col-reorder{ width:20px; flex:0 0 auto; }
+  .col-desc{ flex:1 1 180px; min-width:140px; }
+  .col-qty{ width:56px; flex:0 0 auto; }
+  .col-rate{ width:84px; flex:0 0 auto; }
+  .col-amount{ width:104px; flex:0 0 auto; }
+
+  /* Prevents a row or section from being sliced across a print/PDF page boundary */
+  .keep-together{ break-inside:avoid; page-break-inside:avoid; }
+
+  @media print{
+    body *{ visibility:hidden; }
+    #invoice, #invoice *{ visibility:visible; }
+    #invoice{
+      position:absolute; left:0; top:0; width:100%;
+      box-shadow:none !important; border:none !important; margin:0 !important;
+    }
+    .no-print{ display:none !important; }
+    .field{ border-color:transparent !important; background:transparent !important; }
+    body{ background:white !important; }
+  }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Top bar -->
+<header class="no-print sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold font-display text-sm">M</div>
+      <span class="font-display font-bold text-slate-900 tracking-tight">MicroInvoice</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button id="resetBtn" class="toolbtn">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+        <span class="hidden sm:inline">Reset</span>
+      </button>
+      <button id="copyEmailBtn" class="toolbtn">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+        <span class="hidden sm:inline">Copy Email HTML</span>
+      </button>
+      <button id="exportCsvBtn" class="toolbtn">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 3.75h6M9 8.25h1.5M4.5 21h15a1.5 1.5 0 001.5-1.5V8.25L15.75 3H6a1.5 1.5 0 00-1.5 1.5v15A1.5 1.5 0 006 21z"/></svg>
+        <span class="hidden sm:inline">Export CSV</span>
+      </button>
+      <button id="downloadBtn" class="toolbtn toolbtn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7 10.5l5 5 5-5M12 15V3"/></svg>
+        <span class="hidden sm:inline">Download PDF</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+  <!-- First-run tip -->
+  <div id="tipBar" class="no-print hidden items-start gap-3 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 mb-4">
+    <span class="text-base leading-none mt-0.5">👋</span>
+    <p class="flex-1 text-sm text-indigo-900">
+      New here? Fill in your business and client details below, add line items (or paste them with <strong>AI Magic Paste</strong>), then export with the buttons up top. Everything autosaves to this browser only.
+    </p>
+    <button id="tipDismiss" class="text-indigo-400 hover:text-indigo-700 text-lg leading-none px-1" title="Dismiss">&times;</button>
+  </div>
+
+  <!-- Control panel: currency + payment link -->
+  <div class="no-print grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+    <div class="bg-white border border-slate-200 rounded-xl px-4 py-3">
+      <label class="block text-xs font-semibold text-slate-500 mb-1">Currency</label>
+      <select id="currencySelect" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 bg-white">
+        <option value="USD">USD ($)</option>
+        <option value="EUR">EUR (€)</option>
+        <option value="GBP">GBP (£)</option>
+        <option value="CAD">CAD (CA$)</option>
+        <option value="INR">INR (₹)</option>
+        <option value="JPY">JPY (¥)</option>
+        <option value="AUD">AUD (AU$)</option>
+      </select>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-xl px-4 py-3">
+      <label class="block text-xs font-semibold text-slate-500 mb-1">Payment link (Stripe / PayPal / Wise / Revolut)</label>
+      <input id="paymentLinkInput" type="url" placeholder="https://pay.example.com/your-link" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500" />
+    </div>
+  </div>
+
+  <!-- AI Magic Paste -->
+  <div class="no-print bg-white border border-slate-200 rounded-xl px-4 py-4 mb-6">
+    <div class="flex items-center gap-2 mb-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="currentColor"><path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
+      <p class="text-sm font-semibold text-slate-800">AI Magic Paste</p>
+    </div>
+    <p class="text-xs text-slate-400 mb-2">Paste raw notes like "5 hrs landing page dev at $80/hr, $100 server setup, fixed SSL bug for $50" and we'll turn each into a line item.</p>
+    <textarea id="magicPasteInput" rows="3" class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500" placeholder="Paste project notes, chat logs, or a rough list of work done..."></textarea>
+    <div class="flex items-center justify-between mt-2">
+      <div class="flex items-center gap-3">
+        <button id="tryExampleBtn" class="text-xs font-medium text-indigo-600 hover:text-indigo-800 underline underline-offset-2">Try an example</button>
+        <span id="magicPasteResult" class="text-xs text-slate-400"></span>
+      </div>
+      <button id="magicPasteBtn" class="toolbtn toolbtn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        Parse &amp; Add Items
+      </button>
+    </div>
+  </div>
+
+  <!-- Invoice canvas -->
+  <div id="invoice" class="relative rounded-2xl p-7 sm:p-10">
+    <div class="relative">
+
+      <!-- Header -->
+      <div class="keep-together flex flex-col sm:flex-row justify-between gap-6 mb-7">
+        <div class="flex items-start gap-3.5">
+          <div id="logoDrop" class="logo-drop">
+            <span id="logoPlaceholder" class="text-[10px] text-slate-400 text-center px-2 leading-tight">+ Add<br/>logo</span>
+            <img id="logoImg" class="hidden" alt="Logo" />
+          </div>
+          <input type="file" id="logoInput" accept="image/*" class="hidden" />
+          <div class="pt-0.5">
+            <input class="field font-display font-bold text-lg text-slate-900" id="bizName" placeholder="Your Business Name" />
+            <input class="field text-sm text-slate-500" id="bizEmail" placeholder="you@business.com" />
+            <input class="field text-sm text-slate-500" id="bizPhone" placeholder="Phone number" />
+            <textarea class="field text-sm text-slate-500" id="bizAddress" placeholder="Business address" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="text-left sm:text-right flex-shrink-0 sm:w-60">
+          <h1 class="font-display font-extrabold text-2xl tracking-tight text-slate-900 mb-2 relative inline-block sm:block">
+            INVOICE
+            <span class="block h-1 w-8 rounded-full bg-indigo-600 mt-1 sm:ml-auto"></span>
+          </h1>
+          <div class="grid grid-cols-[auto_1fr] sm:grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-sm items-center">
+            <span class="text-slate-400 text-xs">Invoice #</span>
+            <input class="field text-right font-medium text-slate-700 sm:w-28" id="invoiceNumber" placeholder="INV-0001" />
+            <span class="text-slate-400 text-xs">Date</span>
+            <input type="date" class="field text-right text-slate-700 sm:w-28" id="invoiceDate" />
+            <span class="text-slate-400 text-xs">Due date</span>
+            <input type="date" class="field text-right text-slate-700 sm:w-28" id="dueDate" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Bill From / To -->
+      <div class="keep-together grid grid-cols-1 sm:grid-cols-2 gap-6 mb-7 pb-6 border-b border-slate-100">
+        <div>
+          <p class="text-xs font-semibold tracking-wide text-slate-400 uppercase mb-1.5">Billed by</p>
+          <p class="text-sm font-semibold text-slate-800" id="bizNameEcho">&nbsp;</p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs font-semibold tracking-wide text-slate-400 uppercase mb-1.5">Billed to</p>
+          <input class="field text-right font-semibold text-slate-800" id="clientName" placeholder="Client name" />
+          <input class="field text-right text-sm text-slate-500" id="clientEmail" placeholder="client@email.com" />
+          <textarea class="field text-right text-sm text-slate-500" id="clientAddress" placeholder="Client address" rows="2"></textarea>
+        </div>
+      </div>
+
+      <!-- Line items -->
+      <div class="mb-5">
+        <div class="item-row text-[11px] font-semibold tracking-wide text-slate-400 uppercase px-1.5 pb-2 border-b border-slate-200">
+          <div class="col-reorder no-print"></div>
+          <div class="col-desc px-1.5">Description</div>
+          <div class="col-qty text-right px-1.5">Qty</div>
+          <div class="col-rate text-right px-1.5">Rate</div>
+          <div class="col-amount text-right">Amount</div>
+        </div>
+        <div id="itemsList"></div>
+        <button id="addItemBtn" class="no-print mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 px-1.5 py-1.5 rounded-lg hover:bg-indigo-50 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Add line item
+        </button>
+      </div>
+
+      <!-- Totals -->
+      <div class="flex justify-end mb-6">
+        <div class="keep-together w-full sm:w-72 space-y-1.5 text-sm bg-slate-50 rounded-xl px-4 py-3.5">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500">Subtotal</span>
+            <span class="font-medium text-slate-700 tabular" id="subtotalOut">$0.00</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500 flex items-center gap-1.5">Tax
+              <input type="number" id="taxRate" class="field num-field tabular w-12 !p-1 text-slate-600 bg-white/70 rounded" value="0" min="0" step="0.1" />%
+            </span>
+            <span class="font-medium text-slate-700 tabular" id="taxOut">$0.00</span>
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-200">
+            <span class="font-display font-bold text-slate-900">Total</span>
+            <span class="font-display font-bold text-lg text-indigo-600 tabular" id="totalOut">$0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pay button -->
+      <div id="payBtnWrap" class="hidden mb-6">
+        <a id="payBtn" href="#" target="_blank" rel="noopener" class="no-underline inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3M3.75 4.5h16.5a1.5 1.5 0 011.5 1.5v12a1.5 1.5 0 01-1.5 1.5H3.75a1.5 1.5 0 01-1.5-1.5V6a1.5 1.5 0 011.5-1.5z"/></svg>
+          Pay This Invoice Online
+        </a>
+      </div>
+
+      <!-- Notes -->
+      <div class="keep-together">
+        <p class="text-xs font-semibold tracking-wide text-slate-400 uppercase mb-1.5">Notes</p>
+        <textarea class="field text-sm text-slate-500" id="notes" rows="2" placeholder="Payment terms, thank-you note, bank details, etc."></textarea>
+      </div>
+
+      <div class="mt-7 pt-4 border-t border-slate-100 text-center text-[11px] text-slate-300">
+        Generated with <a id="growthLink" href="#" class="text-slate-400 hover:text-indigo-500 underline underline-offset-2">MicroInvoice</a> — Create your free invoice.
+      </div>
+    </div>
+  </div>
+
+  <p class="no-print text-center text-xs text-slate-400 mt-6">
+    Your invoice autosaves to this browser. Nothing is uploaded anywhere.
+  </p>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = 'micro_invoice_draft_v2';
+
+  var CURRENCIES = {
+    USD: { symbol:'$',   decimals:2 },
+    EUR: { symbol:'€',   decimals:2 },
+    GBP: { symbol:'£',   decimals:2 },
+    CAD: { symbol:'CA$', decimals:2 },
+    INR: { symbol:'₹',   decimals:2 },
+    JPY: { symbol:'¥',   decimals:0 },
+    AUD: { symbol:'AU$', decimals:2 }
+  };
+
+  function cryptoId(){
+    return 'i_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+  }
+
+  function defaultState(){
+    return {
+      logo: null,
+      biz: { name:'', email:'', phone:'', address:'' },
+      client: { name:'', email:'', address:'' },
+      invoiceNumber: 'INV-0001',
+      invoiceDate: new Date().toISOString().slice(0,10),
+      dueDate: '',
+      currency: 'USD',
+      items: [ { id: cryptoId(), title:'', qty:1, rate:0 } ],
+      taxRate: 0,
+      notes: '',
+      paymentLink: ''
+    };
+  }
+
+  var state = null;
+
+  function normalizeState(s){
+    var d = defaultState();
+    var out = Object.assign({}, d, s || {});
+    out.biz = Object.assign({}, d.biz, (s && s.biz) || {});
+    out.client = Object.assign({}, d.client, (s && s.client) || {});
+    if (!CURRENCIES[out.currency]) out.currency = 'USD';
+    if (!Array.isArray(out.items) || out.items.length === 0){
+      out.items = d.items;
+    } else {
+      out.items = out.items.map(function(it){
+        return {
+          id: it.id || cryptoId(),
+          title: it.title || '',
+          qty: Number(it.qty) || 0,
+          rate: Number(it.rate) || 0
+        };
+      });
+    }
+    out.taxRate = Number(out.taxRate) || 0;
+    return out;
+  }
+
+  function loadState(){
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (raw){
+      try{ return normalizeState(JSON.parse(raw)); } catch(e){}
+    }
+    return defaultState();
+  }
+
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){
+      console.warn('Autosave failed (possibly quota exceeded):', e);
+    }
+  }
+
+  function fmtMoney(n, cur){
+    var v = isFinite(n) ? n : 0;
+    return cur.symbol + v.toLocaleString(undefined, { minimumFractionDigits:cur.decimals, maximumFractionDigits:cur.decimals });
+  }
+  function money(n){
+    var cur = CURRENCIES[state.currency] || CURRENCIES.USD;
+    return fmtMoney(n, cur);
+  }
+  function computeSubtotal(){
+    return state.items.reduce(function(sum, it){ return sum + (Number(it.qty)||0) * (Number(it.rate)||0); }, 0);
+  }
+
+  // ---------- Magic Paste parser ----------
+  function looksLikePriceOnlyFragment(s){
+    var t = (s || '').trim();
+    return /^[\$€£¥₹]\s?\d/.test(t) || /^\d+(?:,\d{3})*(?:\.\d+)?\s*(?:dollars|usd|eur|gbp|bucks)\s*$/i.test(t);
+  }
+
+  function parseMagicPaste(text){
+    var lines = text.split(/\n+/).map(function(s){ return s.trim(); }).filter(Boolean);
+    var segments = [];
+    lines.forEach(function(line){
+      var parts = line.split(/,(?!\s?\d{3}\b)/).map(function(p){ return p.trim(); }).filter(Boolean);
+      if (parts.length > 1){
+        // Re-merge cases like "Website copywriting, $250" where the comma just
+        // separates a title from its trailing price rather than two distinct items.
+        var merged = [];
+        for (var i = 0; i < parts.length; i++){
+          var part = parts[i];
+          if (!/\d/.test(part) && i + 1 < parts.length && looksLikePriceOnlyFragment(parts[i+1])){
+            merged.push(part + ' ' + parts[i+1]);
+            i++;
+          } else {
+            merged.push(part);
+          }
+        }
+        segments = segments.concat(merged);
+      } else {
+        segments.push(line);
+      }
+    });
+    return segments.map(parseSegment).filter(Boolean);
+  }
+
+  function parseSegment(segRaw){
+    var seg = (segRaw || '').trim();
+    if (!seg) return null;
+
+    var qty = 1;
+    var remaining = seg;
+
+    var hoursMatch = remaining.match(/(\d+(?:\.\d+)?)\s*(?:hrs?|hours?)\b/i);
+    if (hoursMatch){
+      qty = parseFloat(hoursMatch[1]);
+      remaining = remaining.replace(hoursMatch[0], ' ');
+    } else {
+      var xMatch = remaining.match(/(\d+(?:\.\d+)?)\s*(?:x\b|units?\b|pcs?\b)/i);
+      if (xMatch){
+        qty = parseFloat(xMatch[1]);
+        remaining = remaining.replace(xMatch[0], ' ');
+      } else {
+        var leadMatch = remaining.match(/^\s*(\d+(?:\.\d+)?)\s+(?!hrs?\b|hours?\b)/i);
+        if (leadMatch && !/^\s*[\$€£¥₹]/.test(remaining)){
+          qty = parseFloat(leadMatch[1]);
+          remaining = remaining.replace(leadMatch[0], ' ');
+        }
+      }
+    }
+
+    var rate = 0;
+    var priceMatch = remaining.match(/[\$€£¥₹]\s?(\d+(?:,\d{3})*(?:\.\d+)?)(?:\s*\/\s*hr\b|\s*per\s*hr\b|\s*\/\s*hour\b)?/i);
+    if (!priceMatch){
+      priceMatch = remaining.match(/\b(\d+(?:,\d{3})*(?:\.\d+)?)\s*(?:dollars|usd|eur|gbp|bucks)\b/i);
+    }
+    if (priceMatch){
+      rate = parseFloat(priceMatch[1].replace(/,/g, ''));
+      remaining = remaining.replace(priceMatch[0], ' ');
+    }
+
+    var title = remaining
+      .replace(/\b(at|for|@|per|each|is|was)\b/gi, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+      .replace(/\b(unit|units|pc|pcs)\s*$/i, '')
+      .replace(/[-:,]+$/, '')
+      .replace(/^[-:,]+/, '')
+      .trim();
+
+    if (!title) title = priceMatch ? 'Service' : seg.trim();
+
+    return { id: cryptoId(), title: title, qty: qty, rate: rate };
+  }
+
+  // ---------- DOM refs ----------
+  var $ = function(id){ return document.getElementById(id); };
+  var els = {
+    logoDrop: $('logoDrop'), logoInput: $('logoInput'), logoImg: $('logoImg'), logoPlaceholder: $('logoPlaceholder'),
+    bizName: $('bizName'), bizEmail: $('bizEmail'), bizPhone: $('bizPhone'), bizAddress: $('bizAddress'),
+    bizNameEcho: $('bizNameEcho'),
+    clientName: $('clientName'), clientEmail: $('clientEmail'), clientAddress: $('clientAddress'),
+    invoiceNumber: $('invoiceNumber'), invoiceDate: $('invoiceDate'), dueDate: $('dueDate'),
+    currencySelect: $('currencySelect'),
+    itemsList: $('itemsList'), addItemBtn: $('addItemBtn'),
+    taxRate: $('taxRate'), subtotalOut: $('subtotalOut'), taxOut: $('taxOut'), totalOut: $('totalOut'),
+    notes: $('notes'),
+    paymentLinkInput: $('paymentLinkInput'),
+    payBtnWrap: $('payBtnWrap'), payBtn: $('payBtn'),
+    resetBtn: $('resetBtn'), copyEmailBtn: $('copyEmailBtn'), exportCsvBtn: $('exportCsvBtn'), downloadBtn: $('downloadBtn'),
+    magicPasteInput: $('magicPasteInput'), magicPasteBtn: $('magicPasteBtn'), magicPasteResult: $('magicPasteResult'),
+    tryExampleBtn: $('tryExampleBtn'),
+    tipBar: $('tipBar'), tipDismiss: $('tipDismiss'),
+    growthLink: $('growthLink')
+  };
+
+  function escapeAttr(s){
+    return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  }
+  function escHtml(s){
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ---------- Render ----------
+  function renderStatic(){
+    els.bizName.value = state.biz.name;
+    els.bizEmail.value = state.biz.email;
+    els.bizPhone.value = state.biz.phone;
+    els.bizAddress.value = state.biz.address;
+    els.clientName.value = state.client.name;
+    els.clientEmail.value = state.client.email;
+    els.clientAddress.value = state.client.address;
+    els.invoiceNumber.value = state.invoiceNumber;
+    els.invoiceDate.value = state.invoiceDate;
+    els.dueDate.value = state.dueDate;
+    els.taxRate.value = state.taxRate;
+    els.notes.value = state.notes;
+    els.paymentLinkInput.value = state.paymentLink;
+    els.currencySelect.value = state.currency;
+
+    if (state.logo){
+      els.logoImg.src = state.logo;
+      els.logoImg.classList.remove('hidden');
+      els.logoPlaceholder.classList.add('hidden');
+    } else {
+      els.logoImg.classList.add('hidden');
+      els.logoPlaceholder.classList.remove('hidden');
+    }
+
+    els.bizNameEcho.textContent = state.biz.name || ' ';
+
+    renderItems();
+    renderTotals();
+    renderPayments();
+
+    try{
+      els.growthLink.href = window.location.origin + window.location.pathname;
+    } catch(e){ els.growthLink.href = '#'; }
+  }
+
+  function renderItems(){
+    els.itemsList.innerHTML = '';
+    var cur = CURRENCIES[state.currency] || CURRENCIES.USD;
+    state.items.forEach(function(item, idx){
+      var row = document.createElement('div');
+      var isLast = idx === state.items.length - 1;
+      row.className = 'keep-together item-row px-1.5 py-0.5 group even:bg-slate-50/60' + (isLast ? '' : ' border-b border-slate-100');
+      row.innerHTML =
+        '<div class="col-reorder no-print flex flex-col items-center justify-center gap-0.5">' +
+          '<button class="row-arrow p-0.5" data-move-up="'+item.id+'" '+(idx===0?'disabled':'')+' title="Move up">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/></svg>' +
+          '</button>' +
+          '<button class="row-arrow p-0.5" data-move-down="'+item.id+'" '+(idx===state.items.length-1?'disabled':'')+' title="Move down">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>' +
+          '</button>' +
+        '</div>' +
+        '<div class="col-desc">' +
+          '<input class="field" data-field="title" data-id="'+item.id+'" placeholder="Item or service description" value="'+escapeAttr(item.title)+'" />' +
+        '</div>' +
+        '<div class="col-qty">' +
+          '<input type="number" min="0" step="1" class="field num-field tabular" data-field="qty" data-id="'+item.id+'" value="'+item.qty+'" />' +
+        '</div>' +
+        '<div class="col-rate">' +
+          '<input type="number" min="0" step="0.01" class="field num-field tabular" data-field="rate" data-id="'+item.id+'" value="'+item.rate.toFixed(cur.decimals)+'" />' +
+        '</div>' +
+        '<div class="col-amount flex items-center justify-end gap-1">' +
+          '<span class="text-sm font-medium text-slate-700 tabular" data-amount>'+money(item.qty*item.rate)+'</span>' +
+          '<button class="no-print opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition p-1 flex-shrink-0" data-remove="'+item.id+'" title="Remove line item">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>' +
+          '</button>' +
+        '</div>';
+      els.itemsList.appendChild(row);
+    });
+  }
+
+  function renderTotals(){
+    var subtotal = computeSubtotal();
+    var tax = subtotal * ((Number(state.taxRate)||0) / 100);
+    var total = subtotal + tax;
+    els.subtotalOut.textContent = money(subtotal);
+    els.taxOut.textContent = money(tax);
+    els.totalOut.textContent = money(total);
+    var amountEls = els.itemsList.querySelectorAll('[data-amount]');
+    amountEls.forEach(function(el, idx){
+      var item = state.items[idx];
+      if (item) el.textContent = money(item.qty * item.rate);
+    });
+  }
+
+  function renderPayments(){
+    var showPayBtn = !!state.paymentLink;
+    els.payBtnWrap.classList.toggle('hidden', !showPayBtn);
+    if (showPayBtn) els.payBtn.href = state.paymentLink;
+  }
+
+  // ---------- Event wiring ----------
+  function bindSimple(el, path){
+    el.addEventListener('input', function(){
+      setPath(path, el.value);
+      if (path === 'biz.name') els.bizNameEcho.textContent = el.value || ' ';
+      if (path === 'paymentLink') renderPayments();
+      saveState();
+    });
+  }
+  function setPath(path, value){
+    var parts = path.split('.');
+    var obj = state;
+    for (var i=0;i<parts.length-1;i++){ obj = obj[parts[i]]; }
+    obj[parts[parts.length-1]] = value;
+  }
+
+  bindSimple(els.bizName, 'biz.name');
+  bindSimple(els.bizEmail, 'biz.email');
+  bindSimple(els.bizPhone, 'biz.phone');
+  bindSimple(els.bizAddress, 'biz.address');
+  bindSimple(els.clientName, 'client.name');
+  bindSimple(els.clientEmail, 'client.email');
+  bindSimple(els.clientAddress, 'client.address');
+  bindSimple(els.invoiceNumber, 'invoiceNumber');
+  bindSimple(els.invoiceDate, 'invoiceDate');
+  bindSimple(els.dueDate, 'dueDate');
+  bindSimple(els.notes, 'notes');
+  bindSimple(els.paymentLinkInput, 'paymentLink');
+
+  els.currencySelect.addEventListener('change', function(){
+    state.currency = els.currencySelect.value;
+    renderItems();
+    renderTotals();
+    saveState();
+  });
+
+  els.taxRate.addEventListener('input', function(){
+    state.taxRate = Number(els.taxRate.value) || 0;
+    renderTotals();
+    saveState();
+  });
+
+  els.itemsList.addEventListener('input', function(e){
+    var t = e.target;
+    var id = t.getAttribute('data-id');
+    var field = t.getAttribute('data-field');
+    if (!id || !field) return;
+    var item = state.items.find(function(i){ return i.id === id; });
+    if (!item) return;
+    if (field === 'title') item.title = t.value;
+    else item[field] = Number(t.value) || 0;
+    renderTotals();
+    saveState();
+  });
+
+  // Once a Rate field loses focus, snap its displayed text to the currency's
+  // standard decimal count (e.g. "65.2" -> "65.20") so every row lines up on
+  // the decimal point instead of drifting based on how the user happened to
+  // type it. ('focusout' is used instead of 'blur' because blur doesn't bubble,
+  // and this is a single delegated listener on the whole item list.)
+  els.itemsList.addEventListener('focusout', function(e){
+    var t = e.target;
+    if (!t.getAttribute || t.getAttribute('data-field') !== 'rate') return;
+    var cur = CURRENCIES[state.currency] || CURRENCIES.USD;
+    t.value = (Number(t.value) || 0).toFixed(cur.decimals);
+  });
+
+  els.itemsList.addEventListener('click', function(e){
+    var removeBtn = e.target.closest('[data-remove]');
+    if (removeBtn){
+      var rid = removeBtn.getAttribute('data-remove');
+      if (state.items.length <= 1){
+        state.items = [ { id: cryptoId(), title:'', qty:1, rate:0 } ];
+      } else {
+        state.items = state.items.filter(function(i){ return i.id !== rid; });
+      }
+      renderItems();
+      renderTotals();
+      saveState();
+      return;
+    }
+    var upBtn = e.target.closest('[data-move-up]');
+    if (upBtn && !upBtn.disabled){
+      moveItem(upBtn.getAttribute('data-move-up'), -1);
+      return;
+    }
+    var downBtn = e.target.closest('[data-move-down]');
+    if (downBtn && !downBtn.disabled){
+      moveItem(downBtn.getAttribute('data-move-down'), 1);
+      return;
+    }
+  });
+
+  function moveItem(id, delta){
+    var idx = state.items.findIndex(function(i){ return i.id === id; });
+    if (idx === -1) return;
+    var newIdx = idx + delta;
+    if (newIdx < 0 || newIdx >= state.items.length) return;
+    var tmp = state.items[idx];
+    state.items[idx] = state.items[newIdx];
+    state.items[newIdx] = tmp;
+    renderItems();
+    renderTotals();
+    saveState();
+  }
+
+  els.addItemBtn.addEventListener('click', function(){
+    state.items.push({ id: cryptoId(), title:'', qty:1, rate:0 });
+    renderItems();
+    renderTotals();
+    saveState();
+  });
+
+  // Logo upload
+  els.logoDrop.addEventListener('click', function(){ els.logoInput.click(); });
+  els.logoInput.addEventListener('change', function(){
+    var file = els.logoInput.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      state.logo = reader.result;
+      els.logoImg.src = state.logo;
+      els.logoImg.classList.remove('hidden');
+      els.logoPlaceholder.classList.add('hidden');
+      saveState();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Magic paste
+  els.magicPasteBtn.addEventListener('click', function(){
+    var text = els.magicPasteInput.value;
+    if (!text || !text.trim()){
+      els.magicPasteResult.textContent = 'Paste some text first.';
+      return;
+    }
+    var parsed = parseMagicPaste(text);
+    if (!parsed.length){
+      els.magicPasteResult.textContent = 'Could not find any items in that text.';
+      return;
+    }
+    // If the only existing item is a still-blank default row, replace it instead of leaving an empty row
+    if (state.items.length === 1 && !state.items[0].title && !state.items[0].rate && state.items[0].qty === 1){
+      state.items = parsed;
+    } else {
+      state.items = state.items.concat(parsed);
+    }
+    renderItems();
+    renderTotals();
+    saveState();
+    els.magicPasteResult.textContent = 'Added ' + parsed.length + ' item' + (parsed.length===1?'':'s') + '.';
+    els.magicPasteInput.value = '';
+  });
+
+  // First-run tip bar
+  var TIP_DISMISSED_KEY = 'micro_invoice_tip_dismissed';
+  if (!localStorage.getItem(TIP_DISMISSED_KEY)){
+    els.tipBar.classList.remove('hidden');
+    els.tipBar.classList.add('flex');
+  }
+  els.tipDismiss.addEventListener('click', function(){
+    els.tipBar.classList.add('hidden');
+    els.tipBar.classList.remove('flex');
+    try{ localStorage.setItem(TIP_DISMISSED_KEY, '1'); } catch(e){}
+  });
+
+  // Try an example (Magic Paste)
+  els.tryExampleBtn.addEventListener('click', function(){
+    els.magicPasteInput.value = '5 hrs landing page dev at $80/hr, $100 server setup, fixed SSL bug for $50';
+    els.magicPasteInput.focus();
+    els.magicPasteResult.textContent = '';
+  });
+
+  // Reset
+  els.resetBtn.addEventListener('click', function(){
+    if (!confirm('Clear this invoice and start a new draft? This cannot be undone.')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    state = defaultState();
+    renderStatic();
+  });
+
+  function flashButton(btn, label){
+    var original = btn.innerHTML;
+    btn.innerHTML = '<span class="px-1">'+label+'</span>';
+    setTimeout(function(){ btn.innerHTML = original; }, 1600);
+  }
+
+  // PDF download
+  // Notes on the fixes below (html2canvas + html2pdf.js have a few well-known gotchas —
+  // see the html2pdf.js README "Known issues" section, and its actual v0.10.1 source):
+  // 1. Hiding editor-only controls with visibility:hidden keeps their layout space,
+  //    which left blank gaps in the captured image. We use display:none instead.
+  // 2. html2canvas captures relative to the current scroll position; if the page was
+  //    scrolled when "Download PDF" was clicked, the capture would start with a big
+  //    blank offset and cut real content off the bottom. We scroll to (0,0) first and
+  //    pass scrollX/scrollY:0 to html2canvas.
+  // 3. A fixed "letter" page size avoids crashes but wastes paper: any invoice shorter
+  //    than a full US Letter page leaves blank space, and one just *over* one page
+  //    pushes a couple of lines (and a lot of blank space) onto a near-empty 2nd page.
+  //    To fit the page to the content instead, we need the *real* rendered canvas
+  //    dimensions — but `.toCanvas()`'s own resolved value is `undefined` in this
+  //    library version (its internal `toCanvas_post` handler stores the canvas on
+  //    `this.prop.canvas` but never returns it). The fix is `.get('canvas')`, which
+  //    explicitly reads that stored value back out instead of relying on what
+  //    `.toCanvas()` resolved with.
+  // 4. Because that exact-fit path depends on library internals that are easy to get
+  //    subtly wrong (as the last two attempts showed), it's wrapped in its own
+  //    try/catch and .catch(), and ANY failure there falls back to the plain,
+  //    previously-verified-working Letter-page export — so a download always
+  //    succeeds even if the tight-fit optimization can't run for some reason.
+  els.downloadBtn.addEventListener('click', function(){
+    var invoiceEl = document.getElementById('invoice');
+    var hideEls = invoiceEl.querySelectorAll('.no-print');
+    var prevDisplay = [];
+    hideEls.forEach(function(el){ prevDisplay.push(el.style.display); el.style.display = 'none'; });
+
+    var prevScrollX = window.scrollX;
+    var prevScrollY = window.scrollY;
+    window.scrollTo(0, 0);
+
+    function restore(){
+      hideEls.forEach(function(el, i){ el.style.display = prevDisplay[i]; });
+      window.scrollTo(prevScrollX, prevScrollY);
+    }
+
+    function fail(err){
+      console.error('PDF export failed:', err);
+      restore();
+      alert('Something went wrong generating the PDF. Please try again.');
+    }
+
+    // Give the browser two frames to finish reflowing after the display:none / scroll
+    // changes above before we screenshot — otherwise stale layout metrics (from
+    // mid-transition) can reintroduce the same offset bug.
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        var filename = (state.invoiceNumber || 'invoice') + '.pdf';
+        var pageWidthIn = 8.5;
+
+        var html2canvasOpt = {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: 0
+        };
+
+        function exportLetterSize(){
+          var opt = {
+            margin: 0,
+            filename: filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: html2canvasOpt,
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
+          };
+          return html2pdf().set(opt).from(invoiceEl).save();
+        }
+
+        try{
+          html2pdf().set({ html2canvas: html2canvasOpt }).from(invoiceEl).toCanvas().get('canvas').then(function(canvas){
+            if (!canvas || !canvas.width || !canvas.height){
+              throw new Error('Rendered canvas was not available; falling back.');
+            }
+            var pageHeightIn = Math.max(4, (canvas.height / canvas.width) * pageWidthIn);
+            var finalOpt = {
+              margin: 0,
+              filename: filename,
+              image: { type: 'jpeg', quality: 0.98 },
+              jsPDF: { unit: 'in', format: [pageWidthIn, pageHeightIn], orientation: 'portrait' },
+              pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+            // A fresh, independent conversion straight from the already-rendered
+            // canvas, now that we know the exact page size it needs.
+            return html2pdf().set(finalOpt).from(canvas, 'canvas').save();
+          }).then(function(){
+            restore();
+          }).catch(function(err){
+            console.warn('Exact-fit PDF export failed, falling back to standard Letter page:', err);
+            exportLetterSize().then(restore).catch(fail);
+          });
+        } catch(err){
+          console.warn('Exact-fit PDF export threw synchronously, falling back to standard Letter page:', err);
+          exportLetterSize().then(restore).catch(fail);
+        }
+      });
+    });
+  });
+
+  // CSV export
+  function csvEscape(v){
+    var s = String(v == null ? '' : v);
+    if (/[",\n\r]/.test(s)){
+      s = '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  els.exportCsvBtn.addEventListener('click', function(){
+    var cur = CURRENCIES[state.currency] || CURRENCIES.USD;
+    var subtotal = computeSubtotal();
+    var tax = subtotal * ((Number(state.taxRate)||0) / 100);
+    var total = subtotal + tax;
+
+    var rows = [];
+    rows.push(['Invoice #', state.invoiceNumber || '']);
+    rows.push(['Date', state.invoiceDate || '']);
+    rows.push(['Due Date', state.dueDate || '']);
+    rows.push(['Currency', state.currency]);
+    rows.push([]);
+    rows.push(['Description', 'Quantity', 'Rate', 'Amount']);
+    state.items.forEach(function(it){
+      rows.push([it.title || '', it.qty, it.rate.toFixed(cur.decimals), (it.qty*it.rate).toFixed(cur.decimals)]);
+    });
+    rows.push([]);
+    rows.push(['', '', 'Subtotal', subtotal.toFixed(cur.decimals)]);
+    rows.push(['', '', 'Tax (' + (Number(state.taxRate)||0) + '%)', tax.toFixed(cur.decimals)]);
+    rows.push(['', '', 'Total', total.toFixed(cur.decimals)]);
+
+    var csv = rows.map(function(r){ return r.map(csvEscape).join(','); }).join('\r\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (state.invoiceNumber || 'invoice') + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    flashButton(els.exportCsvBtn, 'Downloaded!');
+  });
+
+  // Copy as Email HTML
+  function buildEmailHtml(){
+    var cur = CURRENCIES[state.currency] || CURRENCIES.USD;
+    var subtotal = computeSubtotal();
+    var tax = subtotal * ((Number(state.taxRate)||0) / 100);
+    var total = subtotal + tax;
+
+    var itemsRows = state.items.map(function(it){
+      return '<tr>' +
+        '<td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#334155;">' + escHtml(it.title || 'Untitled item') + '</td>' +
+        '<td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#334155;text-align:right;">' + it.qty + '</td>' +
+        '<td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#334155;text-align:right;">' + fmtMoney(it.rate, cur) + '</td>' +
+        '<td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a;text-align:right;font-weight:600;">' + fmtMoney(it.qty*it.rate, cur) + '</td>' +
+      '</tr>';
+    }).join('');
+
+    var payButtonHtml = state.paymentLink ? (
+      '<tr><td style="padding:24px 0 0 0;text-align:left;">' +
+        '<a href="' + escapeAttr(state.paymentLink) + '" style="background-color:#4f46e5;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:10px;display:inline-block;">Pay This Invoice Online</a>' +
+      '</td></tr>'
+    ) : '';
+
+    var logoHtml = state.logo ? '<img src="' + state.logo + '" alt="Logo" style="max-width:96px;max-height:96px;display:block;margin-bottom:8px;" />' : '';
+    var appUrl = window.location.origin + window.location.pathname;
+
+    return (
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">' +
+      '<tr><td style="padding:32px;">' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+          '<td style="vertical-align:top;">' + logoHtml +
+            '<div style="font-size:16px;font-weight:700;color:#0f172a;">' + escHtml(state.biz.name || 'Your Business') + '</div>' +
+            '<div style="font-size:13px;color:#64748b;">' + escHtml(state.biz.email || '') + '</div>' +
+            '<div style="font-size:13px;color:#64748b;">' + escHtml(state.biz.phone || '') + '</div>' +
+            '<div style="font-size:13px;color:#64748b;white-space:pre-line;">' + escHtml(state.biz.address || '') + '</div>' +
+          '</td>' +
+          '<td style="vertical-align:top;text-align:right;">' +
+            '<div style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:1px;">INVOICE</div>' +
+            '<div style="font-size:13px;color:#64748b;margin-top:8px;">Invoice # ' + escHtml(state.invoiceNumber || '') + '</div>' +
+            '<div style="font-size:13px;color:#64748b;">Date: ' + escHtml(state.invoiceDate || '') + '</div>' +
+            '<div style="font-size:13px;color:#64748b;">Due: ' + escHtml(state.dueDate || '') + '</div>' +
+          '</td>' +
+        '</tr></table>' +
+
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;"><tr>' +
+          '<td style="vertical-align:top;width:50%;">' +
+            '<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Billed To</div>' +
+            '<div style="font-size:14px;font-weight:600;color:#0f172a;">' + escHtml(state.client.name || '') + '</div>' +
+            '<div style="font-size:13px;color:#64748b;">' + escHtml(state.client.email || '') + '</div>' +
+            '<div style="font-size:13px;color:#64748b;white-space:pre-line;">' + escHtml(state.client.address || '') + '</div>' +
+          '</td>' +
+        '</tr></table>' +
+
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-collapse:collapse;">' +
+          '<tr>' +
+            '<td style="padding:8px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:2px solid #0f172a;">Description</td>' +
+            '<td style="padding:8px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:2px solid #0f172a;text-align:right;">Qty</td>' +
+            '<td style="padding:8px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:2px solid #0f172a;text-align:right;">Rate</td>' +
+            '<td style="padding:8px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:2px solid #0f172a;text-align:right;">Amount</td>' +
+          '</tr>' +
+          itemsRows +
+        '</table>' +
+
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">' +
+          '<tr><td></td><td style="width:240px;">' +
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
+              '<tr><td style="padding:4px 8px;font-size:13px;color:#64748b;">Subtotal</td><td style="padding:4px 8px;font-size:13px;color:#334155;text-align:right;">' + fmtMoney(subtotal, cur) + '</td></tr>' +
+              '<tr><td style="padding:4px 8px;font-size:13px;color:#64748b;">Tax (' + (Number(state.taxRate)||0) + '%)</td><td style="padding:4px 8px;font-size:13px;color:#334155;text-align:right;">' + fmtMoney(tax, cur) + '</td></tr>' +
+              '<tr><td style="padding:8px 8px;font-size:15px;font-weight:800;color:#0f172a;border-top:1px solid #e2e8f0;">Total</td><td style="padding:8px 8px;font-size:15px;font-weight:800;color:#0f172a;text-align:right;border-top:1px solid #e2e8f0;">' + fmtMoney(total, cur) + '</td></tr>' +
+            '</table>' +
+          '</td></tr>' +
+        '</table>' +
+
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + payButtonHtml + '</table>' +
+
+        (state.notes ? ('<div style="margin-top:24px;font-size:13px;color:#64748b;white-space:pre-line;"><strong style="color:#0f172a;">Notes:</strong><br/>' + escHtml(state.notes) + '</div>') : '') +
+
+        '<div style="margin-top:32px;padding-top:16px;border-top:1px solid #f1f5f9;text-align:center;font-size:11px;color:#cbd5e1;">' +
+          'Generated with <a href="' + escapeAttr(appUrl) + '" style="color:#94a3b8;text-decoration:underline;">MicroInvoice</a> — Create your free invoice.' +
+        '</div>' +
+      '</td></tr>' +
+    '</table>'
+    );
+  }
+
+  els.copyEmailBtn.addEventListener('click', function(){
+    var html = buildEmailHtml();
+    var container = document.createElement('div');
+    container.setAttribute('contenteditable', 'true');
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    var range = document.createRange();
+    range.selectNodeContents(container);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    var success = false;
+    try{ success = document.execCommand('copy'); } catch(e){ success = false; }
+    sel.removeAllRanges();
+    var plainText = container.innerText || '';
+    document.body.removeChild(container);
+
+    if (success){
+      flashButton(els.copyEmailBtn, 'Copied!');
+      return;
+    }
+
+    if (navigator.clipboard && window.ClipboardItem){
+      var blobHtml = new Blob([html], { type: 'text/html' });
+      var blobText = new Blob([plainText], { type: 'text/plain' });
+      navigator.clipboard.write([ new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText }) ]).then(function(){
+        flashButton(els.copyEmailBtn, 'Copied!');
+      }).catch(function(){
+        alert('Copy failed in this browser. Try Chrome/Edge, or use Download PDF instead.');
+      });
+    } else {
+      alert('Copy failed in this browser. Try Chrome/Edge, or use Download PDF instead.');
+    }
+  });
+
+  // ---------- Init ----------
+  state = loadState();
+  renderStatic();
+
+})();
+</script>
+</body>
+</html>

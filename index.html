@@ -18,6 +18,10 @@
     --accent-soft:#eef2ff;
     --paper:#ffffff;
     --canvas:#f8fafc;
+    --space-tiny:4px;
+    --space-small:8px;
+    --space-medium:16px;
+    --space-large:24px;
   }
   html,body{ background:var(--canvas); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; color:var(--ink); }
   .font-display{ font-family:'Inter',ui-sans-serif,system-ui,sans-serif; }
@@ -46,11 +50,13 @@
   input[type=number].field{ -moz-appearance:textfield; }
 
   #invoice{
+    box-sizing:border-box;
     background:var(--paper);
     box-shadow:0 1px 2px rgba(15,23,42,.04), 0 12px 32px -12px rgba(15,23,42,.15);
     border:1px solid var(--line);
+    border-top:4px solid var(--accent);
     max-width:210mm;
-    min-height:297mm;
+    min-height:296mm;
     margin:0 auto;
     padding:14mm 15mm 10mm;
     font-size:13px;
@@ -58,7 +64,7 @@
   }
 
   .logo-drop{
-    width:58px; height:58px;
+    width:66px; height:66px;
     border:1px dashed var(--line);
     border-radius:4px;
     display:flex; align-items:center; justify-content:center;
@@ -94,6 +100,12 @@
   .row-arrow:hover:not(:disabled){ color:var(--accent); }
   .row-arrow:disabled{ opacity:.25; cursor:not-allowed; }
 
+  .signature-header{ position:relative; border-bottom:1px solid #94a3b8; }
+  .signature-header::after{ content:''; position:absolute; left:0; bottom:-1px; width:96px; height:3px; background:var(--accent); }
+  .signature-items-heading{ background:#172033; color:#f8fafc; padding:8px 10px; letter-spacing:.12em; }
+  .signature-total{ border-top:2px solid #172033; }
+  .signature-total [id='totalOut']{ color:var(--accent); }
+  .invoice-number{ color:var(--accent); font-weight:700; }
   .document-kicker{ font-size:9px; line-height:1.2; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:#64748b; }
   .document-rule{ border-color:#cbd5e1; }
   .item-row{ display:flex; align-items:flex-start; column-gap:8px; }
@@ -103,7 +115,9 @@
   .col-rate{ width:96px; flex:0 0 auto; }
   .col-amount{ width:112px; flex:0 0 auto; }
   .item-description{ resize:none !important; overflow:hidden; min-height:25px; }
+  .item-description-print{ display:none; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.45; }
   .money-column{ font-variant-numeric:tabular-nums lining-nums; }
+  .print-only{ display:none; }
 
   /* Prevents a row or section from being sliced across a print/PDF page boundary */
   .keep-together{ break-inside:avoid; page-break-inside:avoid; }
@@ -118,7 +132,10 @@
     }
     .no-print{ display:none !important; }
     .field{ border-color:transparent !important; background:transparent !important; box-shadow:none !important; }
+    .field::placeholder{ color:transparent !important; }
     .logo-drop{ border-color:transparent !important; background:transparent !important; }
+    .print-only{ display:inline !important; }
+    .item-description-print{ display:block !important; }
     body{ background:white !important; }
   }
   @media (max-width:640px){
@@ -131,7 +148,10 @@
     .field{ padding-left:2px; padding-right:2px; }
   }
   #invoice.exporting .field{ border-color:transparent !important; background:transparent !important; box-shadow:none !important; }
+  #invoice.exporting .field::placeholder{ color:transparent !important; }
   #invoice.exporting .logo-drop{ border-color:transparent !important; background:transparent !important; }
+  #invoice.exporting .print-only{ display:inline !important; }
+  #invoice.exporting .item-description-print{ display:block !important; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -234,7 +254,7 @@
   <!-- Invoice canvas -->
   <article id="invoice" class="relative flex flex-col">
     <div>
-      <header class="keep-together grid grid-cols-1 sm:grid-cols-[1fr_230px] gap-6 pb-5 border-b-2 border-slate-800">
+      <header class="signature-header keep-together grid grid-cols-1 sm:grid-cols-[1fr_240px] gap-8 pb-5">
         <div class="flex items-start gap-3">
           <div id="logoDrop" class="logo-drop">
             <span id="logoPlaceholder" class="text-[9px] text-slate-400 text-center px-1 leading-tight">Add logo</span>
@@ -242,22 +262,22 @@
           </div>
           <input type="file" id="logoInput" accept="image/*" class="hidden" />
           <div class="min-w-0 flex-1">
-            <input class="field font-semibold text-[17px] leading-tight text-slate-900" id="bizName" placeholder="Your Business Name" />
+            <input class="field font-semibold text-[20px] leading-tight tracking-[-.02em] text-slate-900" id="bizName" placeholder="Your Business Name" />
             <input class="field text-[11px] text-slate-500" id="bizEmail" placeholder="you@business.com" />
             <input class="field text-[11px] text-slate-500" id="bizPhone" placeholder="Phone number" />
             <textarea class="field text-[11px] text-slate-500" id="bizAddress" placeholder="Business address" rows="2"></textarea>
           </div>
         </div>
         <div class="sm:text-right">
-          <h1 class="font-semibold text-[25px] leading-none tracking-[.12em] text-slate-900 mb-3">INVOICE</h1>
+          <h1 class="font-semibold text-[32px] leading-none tracking-[.14em] text-slate-900 mb-3">INVOICE</h1>
           <div class="grid grid-cols-[72px_1fr] sm:grid-cols-[1fr_118px] gap-x-2 gap-y-0.5 items-center">
-            <span class="document-kicker">Invoice no.</span><input class="field sm:text-right font-medium tabular" id="invoiceNumber" placeholder="INV-0001" />
+            <span class="document-kicker">Invoice no.</span><input class="field invoice-number sm:text-right tabular" id="invoiceNumber" placeholder="INV-0001" />
             <span class="document-kicker">Issue date</span><input type="date" class="field sm:text-right tabular text-slate-700" id="invoiceDate" />
             <span class="document-kicker">Due date</span><input type="date" class="field sm:text-right tabular text-slate-700" id="dueDate" />
           </div>
         </div>
       </header>
-      <section class="keep-together grid grid-cols-2 gap-8 py-5 border-b border-slate-200">
+      <section class="keep-together grid grid-cols-2 gap-10 py-5 border-b border-slate-300">
         <div class="min-w-0">
           <p class="document-kicker mb-2">Billed by</p>
           <p class="font-semibold text-slate-900 leading-snug" id="bizNameEcho">&nbsp;</p>
@@ -267,13 +287,13 @@
         </div>
         <div class="min-w-0">
           <p class="document-kicker mb-2">Billed to</p>
-          <input class="field font-semibold text-slate-900" id="clientName" placeholder="Client name" />
+          <input class="field font-semibold text-[16px] text-slate-900" id="clientName" placeholder="Client name" />
           <input class="field text-[11px] text-slate-500" id="clientEmail" placeholder="client@email.com" />
           <textarea class="field text-[11px] text-slate-500" id="clientAddress" placeholder="Client address" rows="2"></textarea>
         </div>
       </section>
       <section class="mt-5 mb-4">
-        <div class="item-row document-kicker px-1 pb-2 border-b border-slate-700">
+        <div class="signature-items-heading item-row document-kicker">
           <div class="col-reorder no-print"></div><div class="col-desc">Description</div><div class="col-qty text-right">Qty</div><div class="col-rate text-right">Rate</div><div class="col-amount text-right">Amount</div>
         </div>
         <div id="itemsList"></div>
@@ -282,13 +302,13 @@
         </button>
       </section>
       <section class="keep-together flex justify-end mb-5">
-        <div class="w-full sm:w-[285px] text-[12px] money-column">
+        <div class="w-full sm:w-[310px] text-[12px] money-column">
           <div class="grid grid-cols-[1fr_118px] gap-x-4 py-1"><span class="text-slate-500">Subtotal</span><span class="text-right font-medium text-slate-700" id="subtotalOut">$0.00</span></div>
           <div class="grid grid-cols-[1fr_118px] gap-x-4 py-1 items-center">
-            <span class="flex items-center gap-1 text-slate-500 min-w-0"><input id="taxLabel" class="field !w-20 !p-0 text-slate-500" maxlength="20" value="Tax" aria-label="Tax label" /><span>(</span><input type="number" id="taxRate" class="field num-field tabular !w-11 !p-0 text-slate-600" value="0" min="0" max="100" step="0.1" aria-label="Tax percentage" /><span>%)</span></span>
+            <span class="no-print flex items-center gap-0.5 text-slate-500 min-w-0"><input id="taxLabel" class="field !w-[72px] !p-0 text-slate-500" maxlength="20" value="Tax" aria-label="Tax label" /><span>(</span><input type="number" id="taxRate" class="field num-field tabular !w-10 !p-0 text-slate-600" value="0" min="0" max="100" step="0.1" aria-label="Tax percentage" /><span>%)</span></span><span id="taxSummary" class="print-only text-slate-500">Tax (0%)</span>
             <span class="text-right font-medium text-slate-700" id="taxOut">$0.00</span>
           </div>
-          <div class="grid grid-cols-[1fr_118px] gap-x-4 mt-1 pt-2 border-t border-slate-800"><span class="font-semibold text-slate-900">Total</span><span class="text-right font-semibold text-[15px] text-slate-900" id="totalOut">$0.00</span></div>
+          <div class="signature-total grid grid-cols-[1fr_126px] gap-x-4 mt-1 pt-2"><span class="font-semibold text-slate-900">Total</span><span class="text-right font-semibold text-[17px]" id="totalOut">$0.00</span></div>
         </div>
       </section>
       <section id="payBtnWrap" class="keep-together hidden mb-5 pt-3 border-t border-slate-200">
@@ -299,7 +319,7 @@
         <p class="document-kicker mb-1.5">Notes</p><p id="notesOut" class="text-[11px] leading-relaxed text-slate-600 whitespace-pre-line"></p>
       </section>
     </div>
-    <footer class="mt-auto pt-3 border-t border-slate-200 text-[10px] text-slate-400">Thank you for your business.</footer>
+    <footer class="mt-auto pt-3 border-t border-slate-200 text-[10px] tracking-[.04em] text-slate-400">Thank you for your business.</footer>
   </article>
   <div class="no-print mt-6 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-center">
     <p class="text-xs font-semibold text-emerald-800">Private by design</p>
@@ -497,7 +517,7 @@
     invoiceNumber: $('invoiceNumber'), invoiceDate: $('invoiceDate'), dueDate: $('dueDate'),
     currencySelect: $('currencySelect'),
     itemsList: $('itemsList'), addItemBtn: $('addItemBtn'),
-    taxLabel: $('taxLabel'), taxRate: $('taxRate'), subtotalOut: $('subtotalOut'), taxOut: $('taxOut'), totalOut: $('totalOut'),
+    taxLabel: $('taxLabel'), taxRate: $('taxRate'), taxSummary: $('taxSummary'), subtotalOut: $('subtotalOut'), taxOut: $('taxOut'), totalOut: $('totalOut'),
     notes: $('notes'), notesWrap: $('notesWrap'), notesOut: $('notesOut'),
     paymentLinkInput: $('paymentLinkInput'), paymentLinkError: $('paymentLinkError'),
     validationSummary: $('validationSummary'), validationList: $('validationList'),
@@ -618,7 +638,7 @@
     state.items.forEach(function(item, idx){
       var row = document.createElement('div');
       var isLast = idx === state.items.length - 1;
-      row.className = 'keep-together item-row px-1 py-1.5 group' + (isLast ? '' : ' border-b border-slate-100');
+      row.className = 'keep-together item-row px-2.5 py-2 group' + (isLast ? '' : ' border-b border-slate-100');
       row.innerHTML =
         '<div class="col-reorder no-print flex flex-col items-center justify-center gap-0.5">' +
           '<button class="row-arrow p-0.5" data-move-up="'+item.id+'" '+(idx===0?'disabled':'')+' title="Move up">' +
@@ -629,7 +649,8 @@
           '</button>' +
         '</div>' +
         '<div class="col-desc">' +
-          '<textarea rows="1" class="field item-description text-[12px]" data-field="title" data-id="'+item.id+'" placeholder="Item or service description">'+escHtml(item.title)+'</textarea>' +
+          '<textarea rows="1" wrap="soft" class="field item-description no-print text-[12px]" data-field="title" data-id="'+item.id+'" placeholder="Item or service description">'+escHtml(item.title)+'</textarea>' +
+          '<span class="item-description-print print-only text-[12px]">'+escHtml(item.title || 'Untitled item')+'</span>' +
         '</div>' +
         '<div class="col-qty">' +
           '<input type="number" min="0" step="any" class="field num-field tabular text-[12px]" data-field="qty" data-id="'+item.id+'" value="'+item.qty+'" />' +
@@ -654,6 +675,7 @@
     var total = subtotal + tax;
     els.subtotalOut.textContent = money(subtotal);
     els.taxOut.textContent = money(tax);
+    els.taxSummary.textContent = (state.taxLabel || 'Tax') + ' (' + (Number(state.taxRate)||0) + '%)';
     els.totalOut.textContent = money(total);
     var amountEls = els.itemsList.querySelectorAll('[data-amount]');
     amountEls.forEach(function(el, idx){
@@ -671,7 +693,10 @@
   function renderPayments(){
     var showPayBtn = !!state.paymentLink && isSecurePaymentLink(state.paymentLink);
     els.payBtnWrap.classList.toggle('hidden', !showPayBtn);
-    if (showPayBtn) els.payBtn.href = state.paymentLink;
+    if (showPayBtn){
+      els.payBtn.href = state.paymentLink;
+      els.payBtn.textContent = state.paymentLink;
+    }
   }
 
   // ---------- Event wiring ----------
@@ -723,6 +748,7 @@
 
   els.taxLabel.addEventListener('input', function(){
     state.taxLabel = els.taxLabel.value || 'Tax';
+    renderTotals();
     saveState();
   });
 
@@ -903,7 +929,7 @@
           image:{ type:'jpeg', quality:0.98 },
           html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0 },
           jsPDF:{ unit:'mm', format:'a4', orientation:'portrait' },
-          pagebreak:{ mode:['avoid-all', 'css', 'legacy'], avoid:['.keep-together', '.item-row'] }
+          pagebreak:{ mode:['css', 'legacy'], avoid:['.keep-together', '.item-row'] }
         }).from(invoiceEl).save().then(function(){
           restore();
         }).catch(function(err){

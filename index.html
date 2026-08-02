@@ -10,148 +10,21 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
-  :root{
-    --ink:#0f172a;
-    --muted:#64748b;
-    --line:#e2e8f0;
-    --accent:#4f46e5;
-    --accent-soft:#eef2ff;
-    --paper:#ffffff;
-    --canvas:#f8fafc;
-    --space-tiny:4px;
-    --space-small:8px;
-    --space-medium:16px;
-    --space-large:24px;
-  }
-  html,body{ background:var(--canvas); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; color:var(--ink); }
-  .font-display{ font-family:'Inter',ui-sans-serif,system-ui,sans-serif; }
-  .tabular{ font-variant-numeric:tabular-nums; }
-
-  .field{
-    width:100%;
-    background:transparent;
-    border:1px solid transparent;
-    border-radius:3px;
-    padding:2px 4px;
-    transition:border-color .12s ease, background-color .12s ease;
-    font-family:inherit;
-    color:inherit;
-    line-height:1.35;
-  }
-  .field:hover{ border-color:var(--line); }
-  .field:focus{ outline:none; border-color:var(--accent); background:#f5f5ff; box-shadow:0 0 0 3px rgba(79,70,229,.08); }
-  .field::placeholder{ color:#a3aab8; }
-  textarea.field{ resize:vertical; min-height:0; line-height:1.4; }
-  .num-field{ text-align:right; }
-
-  /* Hide native number-input spinners so amounts sit flush and clean */
-  input[type=number].field::-webkit-inner-spin-button,
-  input[type=number].field::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
-  input[type=number].field{ -moz-appearance:textfield; }
-
-  #invoice{
-    box-sizing:border-box;
-    background:var(--paper);
-    box-shadow:0 1px 2px rgba(15,23,42,.04), 0 12px 32px -12px rgba(15,23,42,.15);
-    border:1px solid var(--line);
-    border-top:4px solid var(--accent);
-    max-width:210mm;
-    min-height:296mm;
-    margin:0 auto;
-    padding:14mm 15mm 10mm;
-    font-size:13px;
-    line-height:1.35;
-  }
-
-  .logo-drop{
-    width:66px; height:66px;
-    border:1px dashed var(--line);
-    border-radius:4px;
-    display:flex; align-items:center; justify-content:center;
-    cursor:pointer;
-    background:#fafbff;
-    transition:border-color .15s ease, background .15s ease;
-    overflow:hidden;
-    flex-shrink:0;
-  }
-  .logo-drop:hover{ border-color:var(--accent); background:#f8fafc; }
-  .logo-drop img{ width:100%; height:100%; object-fit:contain; }
-
-  .toolbtn{
-    display:inline-flex; align-items:center; gap:6px;
-    font-size:13px; font-weight:600;
-    padding:7px 12px; border-radius:9px;
-    border:1px solid var(--line);
-    color:#334155; background:#fff;
-    transition:background-color .12s ease, border-color .12s ease, box-shadow .12s ease;
-    white-space:nowrap;
-  }
-  .toolbtn:hover{ background:#f8fafc; border-color:#cbd5e1; }
-  .toolbtn:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(79,70,229,.25); }
-  .toolbtn-primary{
-    background:#0f172a; color:#fff; border-color:#0f172a;
-  }
-  .toolbtn-primary:hover{ background:#1e293b; box-shadow:0 2px 8px -2px rgba(15,23,42,.35); }
-
-  ::-webkit-scrollbar{ width:10px; height:10px; }
-  ::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:999px; }
-
-  .row-arrow{ color:#cbd5e1; }
-  .row-arrow:hover:not(:disabled){ color:var(--accent); }
-  .row-arrow:disabled{ opacity:.25; cursor:not-allowed; }
-
-  .signature-header{ position:relative; border-bottom:1px solid #94a3b8; }
-  .signature-header::after{ content:''; position:absolute; left:0; bottom:-1px; width:96px; height:3px; background:var(--accent); }
-  .signature-items-heading{ background:#172033; color:#f8fafc; padding:8px 10px; letter-spacing:.12em; }
-  .signature-total{ border-top:2px solid #172033; }
-  .signature-total [id='totalOut']{ color:var(--accent); }
-  .invoice-number{ color:var(--accent); font-weight:700; }
-  .document-kicker{ font-size:9px; line-height:1.2; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:#64748b; }
-  .document-rule{ border-color:#cbd5e1; }
-  .item-row{ display:flex; align-items:flex-start; column-gap:8px; }
-  .col-reorder{ width:20px; flex:0 0 auto; }
-  .col-desc{ flex:1 1 auto; min-width:0; }
-  .col-qty{ width:52px; flex:0 0 auto; }
-  .col-rate{ width:96px; flex:0 0 auto; }
-  .col-amount{ width:112px; flex:0 0 auto; }
-  .item-description{ resize:none !important; overflow:hidden; min-height:25px; }
-  .item-description-print{ display:none; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.45; }
-  .money-column{ font-variant-numeric:tabular-nums lining-nums; }
-  .print-only{ display:none; }
-
-  /* Prevents a row or section from being sliced across a print/PDF page boundary */
-  .keep-together{ break-inside:avoid; page-break-inside:avoid; }
-
-  @media print{
-    @page{ size:A4; margin:0; }
-    body *{ visibility:hidden; }
-    #invoice, #invoice *{ visibility:visible; }
-    #invoice{
-      position:absolute; left:0; top:0; width:210mm; min-height:297mm;
-      box-shadow:none !important; border:none !important; margin:0 !important;
-    }
-    .no-print{ display:none !important; }
-    .field{ border-color:transparent !important; background:transparent !important; box-shadow:none !important; }
-    .field::placeholder{ color:transparent !important; }
-    .logo-drop{ border-color:transparent !important; background:transparent !important; }
-    .print-only{ display:inline !important; }
-    .item-description-print{ display:block !important; }
-    body{ background:white !important; }
-  }
-  @media (max-width:640px){
-    #invoice{ min-height:0; padding:24px 18px 18px; }
-    .item-row{ column-gap:5px; }
-    .col-reorder{ width:16px; }
-    .col-qty{ width:40px; }
-    .col-rate{ width:72px; }
-    .col-amount{ width:84px; }
-    .field{ padding-left:2px; padding-right:2px; }
-  }
-  #invoice.exporting .field{ border-color:transparent !important; background:transparent !important; box-shadow:none !important; }
-  #invoice.exporting .field::placeholder{ color:transparent !important; }
-  #invoice.exporting .logo-drop{ border-color:transparent !important; background:transparent !important; }
-  #invoice.exporting .print-only{ display:inline !important; }
-  #invoice.exporting .item-description-print{ display:block !important; }
+:root{--ink:#111;--muted:#777;--line:#ddd;--accent:#2e58ff;--paper:#fff;--canvas:#f8fafc}
+html,body{background:var(--canvas);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;color:var(--ink)}.font-display{font-family:'Inter',ui-sans-serif,system-ui,sans-serif}.tabular{font-variant-numeric:tabular-nums lining-nums}
+.field{width:100%;background:transparent;border:1px solid transparent;border-radius:0;padding:1px 2px;transition:border-color .12s ease,background-color .12s ease;font:inherit;color:inherit;line-height:1.35}.field:hover{border-color:#ddd}.field:focus{outline:none;border-color:#2e58ff;background:#f7f8ff;box-shadow:0 0 0 2px rgba(46,88,255,.08)}.field::placeholder{color:#aaa}textarea.field{resize:vertical;min-height:0}input[type=number].field::-webkit-inner-spin-button,input[type=number].field::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}input[type=number].field{-moz-appearance:textfield}.num-field{text-align:right}
+.toolbtn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;border:1px solid #e2e8f0;color:#334155;background:#fff;transition:.12s;white-space:nowrap}.toolbtn:hover{background:#f8fafc;border-color:#cbd5e1}.toolbtn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(79,70,229,.25)}.toolbtn-primary{background:#0f172a;color:#fff;border-color:#0f172a}.toolbtn-primary:hover{background:#1e293b}::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+#invoice{box-sizing:border-box;background:#fff;box-shadow:0 12px 40px rgba(17,17,17,.12);border:1px solid #ddd;width:210mm;max-width:none;height:296mm;margin:0 auto;padding:18mm;font-size:10.5px;line-height:1.52;color:#111;overflow:hidden}.invoice-grid{display:grid;grid-template-columns:repeat(12,1fr);column-gap:4mm}.keep-together{break-inside:avoid;page-break-inside:avoid}.print-only{display:none}
+.logo-drop{width:16mm;height:16mm;border:1px dashed #ddd;border-radius:0;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;overflow:hidden;flex-shrink:0}.logo-drop:hover{border-color:#2e58ff}.logo-drop img{width:100%;height:100%;object-fit:contain}
+.signature-header{height:38mm;border-bottom:1px solid #777}.bp-company{grid-column:1/span 7;display:flex;gap:5mm;padding-top:12mm;min-height:0}.bp-business-fields{width:55mm}.bp-business-fields .field,.bp-meta-grid .field{height:4.5mm;min-height:0;padding:0 2px}.bp-business-fields textarea.field{resize:none}.bp-invoice-meta{grid-column:9/span 4;padding-top:12mm}.bp-invoice-title{font-size:28px;line-height:1;letter-spacing:-.03em;font-weight:600;margin-bottom:4mm}.bp-meta-grid{display:grid;grid-template-columns:19mm 1fr;gap:.6mm 2mm;align-items:center}.bp-meta-label{font-size:7px;color:#444}.invoice-number{color:#2e58ff;font-weight:600}.document-kicker{font-size:8px;line-height:1.2;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#444}
+.bp-billing{height:32mm;border-bottom:1px solid #777;padding-top:8mm}.bp-bill-from{grid-column:1/span 5}.bp-bill-to{grid-column:7/span 5}.bp-party-name{font-size:10.5px;line-height:1.4;font-weight:600;margin-top:2mm}.bp-party-line{font-size:8.5px;line-height:1.55;color:#444}
+.item-row{display:flex;align-items:flex-start;column-gap:8px}.col-reorder{width:20px;flex:0 0 auto}.col-desc{flex:1 1 auto;min-width:0}.col-qty{width:25mm;flex:0 0 auto}.col-rate{width:25mm;flex:0 0 auto}.col-amount{width:34mm;flex:0 0 auto}.item-description{resize:none!important;overflow:hidden;min-height:25px}.item-description-print{display:none;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45}.row-arrow{color:#cbd5e1}.row-arrow:hover:not(:disabled){color:#2e58ff}.row-arrow:disabled{opacity:.25;cursor:not-allowed}
+.bp-items{height:78mm;position:relative}.bp-items #addItemBtn{position:absolute;left:3mm;bottom:1mm;z-index:2}.bp-items:has(#itemsList .item-row:nth-child(7)){height:auto;min-height:78mm;padding-bottom:8mm}#invoice:has(#itemsList .item-row:nth-child(7)){height:auto;min-height:296mm;overflow:visible}.signature-items-heading{height:10mm;padding:0 3mm;align-items:center;border-top:1px solid #777;border-bottom:1px solid #ddd;letter-spacing:.02em}#itemsList{min-height:68mm}.bp-items .item-row{min-height:10mm;padding:2.4mm 3mm;border-bottom:1px solid #eee}
+.bp-totals{height:28mm;border-bottom:1px solid #777;display:flex;justify-content:flex-end;padding-top:3mm}.bp-total-statement{width:72mm;font-size:9px;font-variant-numeric:tabular-nums lining-nums}.bp-total-row{display:grid;grid-template-columns:1fr 30mm;gap:4mm;align-items:center;min-height:5mm}.bp-total-final{border-top:1px solid #111;margin-top:1mm;padding-top:2mm;font-size:13px;font-weight:600}.bp-total-final #totalOut{color:#2e58ff}
+.bp-payment{height:18mm;border-bottom:1px solid #777;padding-top:3mm}.bp-pay-line{display:flex;align-items:center;gap:4mm;margin-top:2mm}.bp-card-icon{width:7mm;height:5mm;border:1px solid #111;border-radius:.5mm;position:relative;flex:none}.bp-card-icon:after{content:'';position:absolute;left:1mm;right:1mm;top:1.6mm;border-top:1px solid #777}.bp-notes{height:16mm;border-bottom:1px solid #777;padding-top:3mm}.bp-footer{margin-top:auto;height:17mm;display:flex;align-items:flex-end;justify-content:center;padding-bottom:1mm;font-size:8px;color:#777}
+#invoice.exporting .field{border-color:transparent!important;background:transparent!important;box-shadow:none!important}#invoice.exporting .field::placeholder{color:transparent!important}#invoice.exporting .logo-drop{border-color:transparent!important;background:transparent!important}#invoice.exporting .print-only{display:inline!important}#invoice.exporting .item-description-print{display:block!important}
+@media print{@page{size:A4;margin:0}body *{visibility:hidden}#invoice,#invoice *{visibility:visible}#invoice{position:absolute;left:0;top:0;width:210mm;height:296mm;box-shadow:none!important;border:none!important;margin:0!important}.no-print{display:none!important}.field{border-color:transparent!important;background:transparent!important;box-shadow:none!important}.field::placeholder{color:transparent!important}.logo-drop{border-color:transparent!important;background:transparent!important}.print-only{display:inline!important}.item-description-print{display:block!important}body{background:#fff!important}}
+@media(max-width:820px){main{overflow-x:auto}#invoice{margin-left:0}}
 </style>
 </head>
 <body class="min-h-screen">
@@ -251,77 +124,47 @@
     </div>
   </div>
 
-  <!-- Invoice canvas -->
+  <!-- Invoice canvas: approved 12-column A4 blueprint -->
   <article id="invoice" class="relative flex flex-col">
-    <div>
-      <header class="signature-header keep-together grid grid-cols-1 sm:grid-cols-[1fr_240px] gap-8 pb-5">
-        <div class="flex items-start gap-3">
-          <div id="logoDrop" class="logo-drop">
-            <span id="logoPlaceholder" class="text-[9px] text-slate-400 text-center px-1 leading-tight">Add logo</span>
-            <img id="logoImg" class="hidden" alt="Business logo" />
-          </div>
-          <input type="file" id="logoInput" accept="image/*" class="hidden" />
-          <div class="min-w-0 flex-1">
-            <input class="field font-semibold text-[20px] leading-tight tracking-[-.02em] text-slate-900" id="bizName" placeholder="Your Business Name" />
-            <input class="field text-[11px] text-slate-500" id="bizEmail" placeholder="you@business.com" />
-            <input class="field text-[11px] text-slate-500" id="bizPhone" placeholder="Phone number" />
-            <textarea class="field text-[11px] text-slate-500" id="bizAddress" placeholder="Business address" rows="2"></textarea>
-          </div>
+    <header class="signature-header invoice-grid keep-together">
+      <div class="bp-company">
+        <div id="logoDrop" class="logo-drop"><span id="logoPlaceholder" class="text-[8px] text-slate-400 text-center px-1 leading-tight">Add logo</span><img id="logoImg" class="hidden" alt="Business logo" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" /></div>
+        <input type="file" id="logoInput" accept="image/*" class="hidden" />
+        <div class="bp-business-fields">
+          <input class="field font-semibold text-[15px] text-black" id="bizName" placeholder="Your Business Name" />
+          <textarea class="field bp-party-line" id="bizAddress" placeholder="Business address" rows="2"></textarea>
+          <input class="field bp-party-line" id="bizEmail" placeholder="you@business.com" />
+          <input class="field bp-party-line" id="bizPhone" placeholder="Phone number" />
         </div>
-        <div class="sm:text-right">
-          <h1 class="font-semibold text-[32px] leading-none tracking-[.14em] text-slate-900 mb-3">INVOICE</h1>
-          <div class="grid grid-cols-[72px_1fr] sm:grid-cols-[1fr_118px] gap-x-2 gap-y-0.5 items-center">
-            <span class="document-kicker">Invoice no.</span><input class="field invoice-number sm:text-right tabular" id="invoiceNumber" placeholder="INV-0001" />
-            <span class="document-kicker">Issue date</span><input type="date" class="field sm:text-right tabular text-slate-700" id="invoiceDate" />
-            <span class="document-kicker">Due date</span><input type="date" class="field sm:text-right tabular text-slate-700" id="dueDate" />
-          </div>
+      </div>
+      <div class="bp-invoice-meta">
+        <h1 class="bp-invoice-title">INVOICE</h1>
+        <div class="bp-meta-grid">
+          <span class="bp-meta-label">Invoice No.</span><input class="field invoice-number text-right tabular" id="invoiceNumber" placeholder="INV-0001" />
+          <span class="bp-meta-label">Issue Date</span><input type="date" class="field text-right tabular" id="invoiceDate" />
+          <span class="bp-meta-label">Due Date</span><input type="date" class="field text-right tabular" id="dueDate" />
+          <span class="bp-meta-label">Currency</span><span class="text-right tabular" id="currencyOut">USD</span>
         </div>
-      </header>
-      <section class="keep-together grid grid-cols-2 gap-10 py-5 border-b border-slate-300">
-        <div class="min-w-0">
-          <p class="document-kicker mb-2">Billed by</p>
-          <p class="font-semibold text-slate-900 leading-snug" id="bizNameEcho">&nbsp;</p>
-          <p class="text-[11px] text-slate-500 leading-snug" id="bizEmailEcho"></p>
-          <p class="text-[11px] text-slate-500 leading-snug" id="bizPhoneEcho"></p>
-          <p class="text-[11px] text-slate-500 leading-snug whitespace-pre-line" id="bizAddressEcho"></p>
-        </div>
-        <div class="min-w-0">
-          <p class="document-kicker mb-2">Billed to</p>
-          <input class="field font-semibold text-[16px] text-slate-900" id="clientName" placeholder="Client name" />
-          <input class="field text-[11px] text-slate-500" id="clientEmail" placeholder="client@email.com" />
-          <textarea class="field text-[11px] text-slate-500" id="clientAddress" placeholder="Client address" rows="2"></textarea>
-        </div>
-      </section>
-      <section class="mt-5 mb-4">
-        <div class="signature-items-heading item-row document-kicker">
-          <div class="col-reorder no-print"></div><div class="col-desc">Description</div><div class="col-qty text-right">Qty</div><div class="col-rate text-right">Rate</div><div class="col-amount text-right">Amount</div>
-        </div>
-        <div id="itemsList"></div>
-        <button id="addItemBtn" class="no-print mt-2 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 px-1 py-1 rounded hover:bg-indigo-50 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg> Add line item
-        </button>
-      </section>
-      <section class="keep-together flex justify-end mb-5">
-        <div class="w-full sm:w-[310px] text-[12px] money-column">
-          <div class="grid grid-cols-[1fr_118px] gap-x-4 py-1"><span class="text-slate-500">Subtotal</span><span class="text-right font-medium text-slate-700" id="subtotalOut">$0.00</span></div>
-          <div class="grid grid-cols-[1fr_118px] gap-x-4 py-1 items-center">
-            <span class="no-print flex items-center gap-0.5 text-slate-500 min-w-0"><input id="taxLabel" class="field !w-[72px] !p-0 text-slate-500" maxlength="20" value="Tax" aria-label="Tax label" /><span>(</span><input type="number" id="taxRate" class="field num-field tabular !w-10 !p-0 text-slate-600" value="0" min="0" max="100" step="0.1" aria-label="Tax percentage" /><span>%)</span></span><span id="taxSummary" class="print-only text-slate-500">Tax (0%)</span>
-            <span class="text-right font-medium text-slate-700" id="taxOut">$0.00</span>
-          </div>
-          <div class="signature-total grid grid-cols-[1fr_126px] gap-x-4 mt-1 pt-2"><span class="font-semibold text-slate-900">Total</span><span class="text-right font-semibold text-[17px]" id="totalOut">$0.00</span></div>
-        </div>
-      </section>
-      <section id="payBtnWrap" class="keep-together hidden mb-5 pt-3 border-t border-slate-200">
-        <p class="document-kicker mb-1.5">How to Pay</p>
-        <a id="payBtn" href="#" target="_blank" rel="noopener" class="inline-block text-[12px] font-semibold text-indigo-700 underline underline-offset-2 break-all">Pay securely online</a>
-      </section>
-      <section id="notesWrap" class="keep-together hidden mb-4 pt-3 border-t border-slate-200">
-        <p class="document-kicker mb-1.5">Notes</p><p id="notesOut" class="text-[11px] leading-relaxed text-slate-600 whitespace-pre-line"></p>
-      </section>
-    </div>
-    <footer class="mt-auto pt-3 border-t border-slate-200 text-[10px] tracking-[.04em] text-slate-400">Thank you for your business.</footer>
-  </article>
-  <div class="no-print mt-6 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-center">
+      </div>
+    </header>
+    <section class="bp-billing invoice-grid keep-together">
+      <div class="bp-bill-from"><p class="document-kicker">Bill From</p><p class="bp-party-name" id="bizNameEcho">&nbsp;</p><p class="bp-party-line" id="bizEmailEcho"></p><p class="bp-party-line" id="bizPhoneEcho"></p><p class="bp-party-line whitespace-pre-line" id="bizAddressEcho"></p></div>
+      <div class="bp-bill-to"><p class="document-kicker">Bill To</p><input class="field bp-party-name" id="clientName" placeholder="Client name" /><input class="field bp-party-line" id="clientEmail" placeholder="client@email.com" /><textarea class="field bp-party-line" id="clientAddress" placeholder="Client address" rows="2"></textarea></div>
+    </section>
+    <section class="bp-items">
+      <div class="signature-items-heading item-row document-kicker"><div class="col-reorder no-print"></div><div class="col-desc">Description</div><div class="col-qty text-right">Qty</div><div class="col-rate text-right">Rate</div><div class="col-amount text-right">Amount</div></div>
+      <div id="itemsList"></div>
+      <button id="addItemBtn" class="no-print text-xs text-indigo-600">+ Add line item</button>
+    </section>
+    <section class="bp-totals keep-together"><div class="bp-total-statement">
+      <div class="bp-total-row"><span>Subtotal</span><span class="text-right" id="subtotalOut">$0.00</span></div>
+      <div class="bp-total-row"><span class="no-print flex items-center"><input id="taxLabel" class="field !w-[55px] !p-0" maxlength="20" value="Tax" aria-label="Tax label" /> (<input type="number" id="taxRate" class="field num-field tabular !w-8 !p-0" value="0" min="0" max="100" step="0.1" aria-label="Tax percentage" />%)</span><span id="taxSummary" class="print-only">Tax (0%)</span><span class="text-right" id="taxOut">$0.00</span></div>
+      <div class="bp-total-row bp-total-final"><span>TOTAL</span><span class="text-right" id="totalOut">$0.00</span></div>
+    </div></section>
+    <section id="payBtnWrap" class="bp-payment keep-together hidden"><p class="document-kicker">How to Pay</p><div class="bp-pay-line"><span class="bp-card-icon"></span><div><p class="text-[8px]">Pay securely online using the link below.</p><a id="payBtn" href="#" target="_blank" rel="noopener" class="text-[8px] font-semibold text-[#2e58ff] underline break-all">Pay securely online</a></div></div></section>
+    <section id="notesWrap" class="bp-notes keep-together hidden"><p class="document-kicker">Notes</p><p id="notesOut" class="text-[8px] mt-2 whitespace-pre-line"></p></section>
+    <footer class="bp-footer">Thank you for your business.</footer>
+  </article>  <div class="no-print mt-6 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-center">
     <p class="text-xs font-semibold text-emerald-800">Private by design</p>
     <p class="text-xs text-emerald-700 mt-0.5">Your invoice data stays in this browser. No signup, no account, and no invoice data is uploaded to our servers.</p>
   </div>
@@ -515,7 +358,7 @@
     bizNameEcho: $('bizNameEcho'), bizEmailEcho: $('bizEmailEcho'), bizPhoneEcho: $('bizPhoneEcho'), bizAddressEcho: $('bizAddressEcho'),
     clientName: $('clientName'), clientEmail: $('clientEmail'), clientAddress: $('clientAddress'),
     invoiceNumber: $('invoiceNumber'), invoiceDate: $('invoiceDate'), dueDate: $('dueDate'),
-    currencySelect: $('currencySelect'),
+    currencySelect: $('currencySelect'), currencyOut: $('currencyOut'),
     itemsList: $('itemsList'), addItemBtn: $('addItemBtn'),
     taxLabel: $('taxLabel'), taxRate: $('taxRate'), taxSummary: $('taxSummary'), subtotalOut: $('subtotalOut'), taxOut: $('taxOut'), totalOut: $('totalOut'),
     notes: $('notes'), notesWrap: $('notesWrap'), notesOut: $('notesOut'),
@@ -605,6 +448,7 @@
     els.notes.value = state.notes;
     els.paymentLinkInput.value = state.paymentLink;
     els.currencySelect.value = state.currency;
+    els.currencyOut.textContent = state.currency;
 
     if (state.logo){
       els.logoImg.src = state.logo;
@@ -741,6 +585,7 @@
 
   els.currencySelect.addEventListener('change', function(){
     state.currency = els.currencySelect.value;
+    els.currencyOut.textContent = state.currency;
     renderItems();
     renderTotals();
     saveState();
@@ -927,7 +772,7 @@
           margin:0,
           filename:(state.invoiceNumber || 'invoice') + '.pdf',
           image:{ type:'jpeg', quality:0.98 },
-          html2canvas:{ scale:2, useCORS:true, backgroundColor:'#ffffff', scrollX:0, scrollY:0 },
+          html2canvas:{ scale:2, useCORS:true, allowTaint:false, backgroundColor:'#ffffff', scrollX:0, scrollY:0 },
           jsPDF:{ unit:'mm', format:'a4', orientation:'portrait' },
           pagebreak:{ mode:['css', 'legacy'], avoid:['.keep-together', '.item-row'] }
         }).from(invoiceEl).save().then(function(){
